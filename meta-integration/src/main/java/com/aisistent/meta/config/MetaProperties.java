@@ -1,7 +1,6 @@
 package com.aisistent.meta.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.context.annotation.Configuration;
 
 /**
  * Binds the "meta.*" properties from application.properties into a type-safe POJO.
@@ -11,7 +10,6 @@ import org.springframework.context.annotation.Configuration;
  *   meta.app-secret   – Facebook App Secret
  *   meta.redirect-uri – OAuth callback URL
  */
-@Configuration
 @ConfigurationProperties(prefix = "meta")
 public class MetaProperties {
 

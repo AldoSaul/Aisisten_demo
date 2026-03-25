@@ -5,9 +5,9 @@ import com.aisistent.meta.store.TokenStore;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Map;
@@ -15,7 +15,7 @@ import java.util.Map;
 /**
  * Centralises every HTTP call to the Meta (Facebook) Graph API.
  *
- * All requests go through {@link RestTemplate} and return the raw JSON
+ * All requests go through {@link RestClient} and return the raw JSON
  * as a {@code Map<String, Object>} so the caller can decide how to present it.
  */
 @Service
@@ -26,14 +26,17 @@ public class MetaApiService {
     /** Base URL for the Graph API (v25.0). */
     private static final String GRAPH_BASE = "https://graph.facebook.com/v25.0";
 
+    private static final ParameterizedTypeReference<Map<String, Object>> MAP_TYPE =
+            new ParameterizedTypeReference<>() {};
+
     private final MetaProperties metaProperties;
     private final TokenStore tokenStore;
-    private final RestTemplate restTemplate;
+    private final RestClient restClient;
 
-    public MetaApiService(MetaProperties metaProperties, TokenStore tokenStore) {
+    public MetaApiService(MetaProperties metaProperties, TokenStore tokenStore, RestClient.Builder restClientBuilder) {
         this.metaProperties = metaProperties;
         this.tokenStore = tokenStore;
-        this.restTemplate = new RestTemplate();
+        this.restClient = restClientBuilder.build();
     }
 
     // -------------------------------------------------------------------------
@@ -54,7 +57,7 @@ public class MetaApiService {
         String scope = "ads_read";
 
         String url = UriComponentsBuilder
-                .fromHttpUrl("https://www.facebook.com/v25.0/dialog/oauth")
+                .fromUriString("https://www.facebook.com/v25.0/dialog/oauth")
                 .queryParam("client_id", metaProperties.getAppId())
                 .queryParam("redirect_uri", metaProperties.getRedirectUri())
                 .queryParam("scope", scope)
@@ -73,10 +76,9 @@ public class MetaApiService {
      * @param code the authorisation code received in the callback
      * @return parsed JSON response from Meta
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> exchangeCodeForToken(String code) {
         String url = UriComponentsBuilder
-                .fromHttpUrl(GRAPH_BASE + "/oauth/access_token")
+                .fromUriString(GRAPH_BASE + "/oauth/access_token")
                 .queryParam("client_id", metaProperties.getAppId())
                 .queryParam("redirect_uri", metaProperties.getRedirectUri())
                 .queryParam("client_secret", metaProperties.getAppSecret())
@@ -84,7 +86,7 @@ public class MetaApiService {
                 .toUriString();
 
         log.info("Exchanging authorisation code for access token");
-        Map<String, Object> response = restTemplate.getForObject(url, Map.class);
+        Map<String, Object> response = restClient.get().uri(url).retrieve().body(MAP_TYPE);
 
         if (response != null && response.containsKey("access_token")) {
             String token = (String) response.get("access_token");
@@ -106,18 +108,17 @@ public class MetaApiService {
      *
      * @return parsed JSON with fields {@code id} and {@code name}
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> fetchCurrentUser() {
         requireToken();
 
         String url = UriComponentsBuilder
-                .fromHttpUrl(GRAPH_BASE + "/me")
+                .fromUriString(GRAPH_BASE + "/me")
                 .queryParam("fields", "id,name")
                 .queryParam("access_token", tokenStore.getAccessToken())
                 .toUriString();
 
         log.info("Calling GET /me");
-        return restTemplate.getForObject(url, Map.class);
+        return restClient.get().uri(url).retrieve().body(MAP_TYPE);
     }
 
     /**
@@ -127,7 +128,6 @@ public class MetaApiService {
      *
      * @return parsed JSON with token debug information
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> debugToken() {
         requireToken();
 
@@ -135,13 +135,13 @@ public class MetaApiService {
         String appAccessToken = metaProperties.getAppId() + "|" + metaProperties.getAppSecret();
 
         String url = UriComponentsBuilder
-                .fromHttpUrl(GRAPH_BASE + "/debug_token")
+                .fromUriString(GRAPH_BASE + "/debug_token")
                 .queryParam("input_token", tokenStore.getAccessToken())
                 .queryParam("access_token", appAccessToken)
                 .toUriString();
 
         log.info("Calling GET /debug_token");
-        return restTemplate.getForObject(url, Map.class);
+        return restClient.get().uri(url).retrieve().body(MAP_TYPE);
     }
 
     /**
@@ -150,18 +150,17 @@ public class MetaApiService {
      * @param adAccountId numeric ad account ID (without the "act_" prefix)
      * @return parsed JSON with ad account fields
      */
-    @SuppressWarnings("unchecked")
     public Map<String, Object> fetchAdAccount(String adAccountId) {
         requireToken();
 
         String url = UriComponentsBuilder
-                .fromHttpUrl(GRAPH_BASE + "/act_" + adAccountId)
+                .fromUriString(GRAPH_BASE + "/act_" + adAccountId)
                 .queryParam("fields", "id,account_id,name,account_status,currency,timezone_name")
                 .queryParam("access_token", tokenStore.getAccessToken())
                 .toUriString();
 
         log.info("Calling GET /act_{} for ad account details", adAccountId);
-        return restTemplate.getForObject(url, Map.class);
+        return restClient.get().uri(url).retrieve().body(MAP_TYPE);
     }
 
     // -------------------------------------------------------------------------

@@ -11,7 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -89,7 +89,7 @@ public class MetaController {
             CallbackResponse body = new CallbackResponse("Meta account connected", preview);
             return ResponseEntity.ok(body);
 
-        } catch (RestClientException ex) {
+        } catch (RestClientResponseException ex) {
             log.error("Failed to exchange code for token: {}", ex.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .body(new ErrorResponse("token_exchange_failed", ex.getMessage()));
@@ -118,7 +118,7 @@ public class MetaController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new ErrorResponse("no_token", ex.getMessage()));
 
-        } catch (RestClientException ex) {
+        } catch (RestClientResponseException ex) {
             log.error("Graph API /me call failed: {}", ex.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .body(new ErrorResponse("graph_api_error", ex.getMessage()));
@@ -146,7 +146,7 @@ public class MetaController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new ErrorResponse("no_token", ex.getMessage()));
 
-        } catch (RestClientException ex) {
+        } catch (RestClientResponseException ex) {
             log.error("Graph API debug_token call failed: {}", ex.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .body(new ErrorResponse("graph_api_error", ex.getMessage()));
@@ -183,7 +183,7 @@ public class MetaController {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(new ErrorResponse("no_token", ex.getMessage()));
 
-        } catch (RestClientException ex) {
+        } catch (RestClientResponseException ex) {
             log.error("Graph API ad account call failed: {}", ex.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
                     .body(new ErrorResponse("graph_api_error", ex.getMessage()));
