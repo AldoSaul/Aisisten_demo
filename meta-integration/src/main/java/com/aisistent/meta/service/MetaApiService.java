@@ -1,7 +1,6 @@
 package com.aisistent.meta.service;
 
-import com.aisistent.meta.config.MetaProperties;
-import com.aisistent.meta.store.TokenStore;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,7 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.util.UriComponentsBuilder;
 
-import java.util.Map;
+import com.aisistent.meta.config.MetaProperties;
+import com.aisistent.meta.store.TokenStore;
 
 /**
  * Centralises every HTTP call to the Meta (Facebook) Graph API.
@@ -54,7 +54,8 @@ public class MetaApiService {
      */
     public String buildOAuthLoginUrl() {
         // Change this value to "ads_management" when needed
-        String scope = "ads_read";
+        //String scope = "ads_read";
+        String scope = "";
 
         String url = UriComponentsBuilder
                 .fromUriString("https://www.facebook.com/v25.0/dialog/oauth")
