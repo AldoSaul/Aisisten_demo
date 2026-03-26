@@ -1,0 +1,18 @@
+{
+  "expo": {
+    "name": "leads-frontend",
+    "slug": "leads-frontend",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTabletMode": true
+    },
+    "android": {
+      "package": "com.leadsfrontend"
+    }
+  }
+}
