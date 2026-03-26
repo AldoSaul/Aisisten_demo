@@ -1,23 +1,25 @@
+import 'react-native-url-polyfill/auto';
 import 'react-native-gesture-handler';
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { View, Text } from 'react-native';
-import { AppNavigator } from './src/navigation/AppNavigator';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AppProvider }  from './src/context/AppContext';
+import AppNavigator     from './src/navigation/AppNavigator';
 
-export default function App() {
+// ── Inner app (functional, so hooks work) ────────────────────────────────────
+function RootApp() {
   return (
-    <View style={styles.container}>
-      <AppNavigator />
-    </View>
+    <SafeAreaProvider>
+      <StatusBar style="dark" />
+      <AppProvider>
+        <AppNavigator />
+      </AppProvider>
+    </SafeAreaProvider>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
-
+// ── Error boundary wrapping the whole tree ───────────────────────────────────
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -35,22 +37,13 @@ class ErrorBoundary extends React.Component {
   render() {
     if (this.state.hasError) {
       return (
-        <>
-          <StatusBar style="dark" />
-          <View style={{ flex: 1, padding: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
-            <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 10 }}>Oops! Algo salió mal</Text>
-            <Text style={{ fontSize: 14, color: '#666' }}>{this.state.error?.toString()}</Text>
-          </View>
-        </>
+        <View style={{ flex: 1, padding: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' }}>
+          <Text style={{ fontSize: 18, fontWeight: '700', marginBottom: 10 }}>Oops! Algo salió mal</Text>
+          <Text style={{ fontSize: 14, color: '#666' }}>{this.state.error?.toString()}</Text>
+        </View>
       );
     }
-
-    return (
-      <>
-        <StatusBar style="dark" />
-        <AppNavigator />
-      </>
-    );
+    return <RootApp />;
   }
 }
 
