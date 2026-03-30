@@ -2,6 +2,12 @@
 target/
 **/target/
 
+# Compiled Java bytecode (safety net outside target/)
+*.class
+
+# Maven compiler status files (contain local developer paths)
+*.lst
+
 # Node / npm installs
 node_modules/
 **/node_modules/
