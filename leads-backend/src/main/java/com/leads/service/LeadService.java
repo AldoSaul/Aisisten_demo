@@ -17,24 +17,15 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class LeadService {
 
-    private final LeadRepository       leadRepo;
+    private final LeadRepository         leadRepo;
     private final ConversationRepository convRepo;
-    private final MessageRepository    msgRepo;
-    private final TenantRepository     tenantRepo;
-    private final SimpMessagingTemplate ws;
+    private final MessageRepository      msgRepo;
+    private final TenantRepository       tenantRepo;
+    private final SimpMessagingTemplate  ws;
 
-    /**
-     * Procesa un IncomingMessageEvent que llega desde Kafka.
-     * 1. Resuelve el Tenant por pageId o phoneNumberId
-     * 2. Busca o crea el Lead
-     * 3. Busca o crea la Conversation
-     * 4. Guarda el Message
-     * 5. Notifica por WebSocket al frontend
-     */
     @Transactional
     public void processIncoming(IncomingMessageEvent event) {
 
-        // 1. Resolver Tenant
         Tenant tenant = resolveTenant(event);
         if (tenant == null) {
             log.warn("Tenant no encontrado para pageId={} phoneId={}",
@@ -42,14 +33,12 @@ public class LeadService {
             return;
         }
 
-        // 2. Deduplicar por externalMessageId
         if (event.getExternalMessageId() != null &&
             msgRepo.existsByExternalMessageId(event.getExternalMessageId())) {
             log.debug("Mensaje duplicado ignorado: {}", event.getExternalMessageId());
             return;
         }
 
-        // 3. Buscar o crear Lead
         Lead lead = leadRepo
             .findBySenderIdAndChannelAndTenantId(event.getSenderId(), event.getChannel(), tenant.getId())
             .orElseGet(() -> leadRepo.save(Lead.builder()
@@ -60,7 +49,6 @@ public class LeadService {
                 .tenant(tenant)
                 .build()));
 
-        // 4. Buscar o crear Conversation
         Conversation conv = convRepo
             .findByLeadIdAndChannel(lead.getId(), event.getChannel())
             .orElseGet(() -> convRepo.save(Conversation.builder()
@@ -70,7 +58,6 @@ public class LeadService {
                 .lastMessageAt(LocalDateTime.now())
                 .build()));
 
-        // 5. Guardar Message
         Message msg = msgRepo.save(Message.builder()
             .externalMessageId(event.getExternalMessageId())
             .conversation(conv)
@@ -83,15 +70,37 @@ public class LeadService {
             .sentAt(event.getSentAt() != null ? event.getSentAt() : LocalDateTime.now())
             .build());
 
-        // 6. Actualizar contadores en Conversation
         conv.setLastMessageAt(msg.getCreatedAt());
         conv.setUnreadCount(conv.getUnreadCount() + 1);
         convRepo.save(conv);
 
-        // 7. Push por WebSocket → /topic/tenant/{tenantId}/messages
         String destination = "/topic/tenant/" + tenant.getId() + "/messages";
         ws.convertAndSend(destination, MessageDTO.from(msg));
         log.info("Mensaje procesado y enviado por WS → {}", destination);
+    }
+
+    @Transactional
+    public MessageDTO sendOutgoing(Long conversationId, String contenido) {
+        Conversation conv = convRepo.findById(conversationId)
+            .orElseThrow(() -> new IllegalArgumentException("Conversación no encontrada: " + conversationId));
+
+        Message msg = msgRepo.save(Message.builder()
+            .conversation(conv)
+            .channel(conv.getChannel())
+            .contenido(contenido)
+            .esEntrante(false)
+            .status(MessageStatus.PROCESSED)
+            .sentAt(LocalDateTime.now())
+            .build());
+
+        conv.setLastMessageAt(msg.getCreatedAt());
+        convRepo.save(conv);
+
+        String destination = "/topic/tenant/" + conv.getTenant().getId() + "/messages";
+        ws.convertAndSend(destination, MessageDTO.from(msg));
+        log.info("Mensaje saliente enviado por WS → {}", destination);
+
+        return MessageDTO.from(msg);
     }
 
     @Transactional

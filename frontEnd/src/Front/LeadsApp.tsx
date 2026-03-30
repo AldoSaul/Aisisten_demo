@@ -1,75 +1,118 @@
 import { useState, useEffect, useRef } from "react";
-import {css}  from "../CSS/leadCss.tsx";
-import { TENANTS, ALL_CONVS, ALL_MSGS, FAKE_INCOMING, CH_COLOR, CH_LABEL, CH_LIGHT } from "../helper/data.tsx";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
+import { css } from "../CSS/leadCss.tsx";
+import { TENANTS, CH_COLOR, CH_LABEL, CH_LIGHT, normalizeConv, normalizeMsg } from "../helper/data.tsx";
+import { getConversations, getMessages, markAsRead, sendMessage } from "../api/client.ts";
 
 
 export default function LeadsApp() {
-  const [activeTenant,    setActiveTenant]    = useState<number>(1);
-  const [channelFilter,   setChannelFilter]   = useState<string | null>(null);
-  const [activeConv,      setActiveConv]      = useState<any>(null);
-  const [conversations,   setConversations]   = useState<any[]>(ALL_CONVS);
-  const [messages,        setMessages]        = useState<Record<number, any[]>>({});
-  const [inputValue,      setInputValue]      = useState<string>("");
-  const [showTyping,      setShowTyping]      = useState<boolean | number>(false);
-  const msgsEndRef = useRef(null);
-  const fakeIdx    = useRef(0);
+  const [activeTenant,  setActiveTenant]  = useState<number>(1);
+  const [channelFilter, setChannelFilter] = useState<string | null>(null);
+  const [activeConv,    setActiveConv]    = useState<any>(null);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [messages,      setMessages]      = useState<Record<number, any[]>>({});
+  const [inputValue,    setInputValue]    = useState<string>("");
+  const msgsEndRef    = useRef<HTMLDivElement>(null);
+  const activeConvRef = useRef<any>(null);
 
-  // Init messages
-  useEffect(() => { setMessages({ ...ALL_MSGS }); }, []);
+  // Keep activeConv accessible inside WS callback without stale closure
+  useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
 
   // Scroll to bottom on new message
   useEffect(() => {
-    (msgsEndRef.current as unknown as HTMLDivElement)?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, activeConv, showTyping]);
+    msgsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, activeConv]);
 
-  // Simulate incoming messages every 12s
+  // Load conversations when tenant changes
   useEffect(() => {
-    const t = setInterval(() => {
-      const item = FAKE_INCOMING[fakeIdx.current % FAKE_INCOMING.length];
-      fakeIdx.current++;
-      // Only simulate if tenant matches
-      const conv = ALL_CONVS.find((c: { id: any; }) => c.id === item.convId);
-      if (!conv || conv.tenantId !== activeTenant) return;
+    getConversations(activeTenant)
+      .then((data: any[]) => setConversations(data.map(c => normalizeConv(c, activeTenant))))
+      .catch(console.error);
+  }, [activeTenant]);
 
-      setShowTyping(item.convId);
-      setTimeout(() => {
-        setShowTyping(false);
-        const newMsg = { id: Date.now(), txt: item.txt, out: false, time: new Date().toLocaleTimeString("es-MX", { hour:"2-digit", minute:"2-digit" }), isNew: true };
-        setMessages(prev => ({ ...prev, [item.convId]: [...(prev[item.convId] || []), newMsg] }));
-        setConversations((prev: any[]) => prev.map((c: { id: any; unread: number; }) =>
-          c.id === item.convId
-            ? { ...c, preview: item.txt, time: "ahora", unread: c.unread + (activeConv?.id === item.convId ? 0 : 1) }
-            : c
-        ).sort((a: { id: any; }, b: { id: any; }) => {
-          if (a.id === item.convId) return -1;
-          if (b.id === item.convId) return 1;
-          return 0;
-        }));
-      }, 2200);
-    }, 12000);
-    return () => clearInterval(t);
-  }, [activeTenant, activeConv]);
+  // WebSocket: subscribe to real-time messages for active tenant
+  // Note: In a production app, consider using a more robust state management and WebSocket handling approach (e.g., Redux + middleware, context provider, or a custom hook) to avoid potential issues with component re-renders and state updates.
+  // For this demo, the direct useEffect with refs is a simpler solution to ensure the latest state is used in the WebSocket callback without needing to manage complex dependencies or risk stale closures.  
+  // Also, remember to handle WebSocket connection errors and edge cases in a real application.
+  //SockJS doesn't support native WebSocket features like automatic reconnection or heartbeats, so using @stomp/stompjs with SockJS provides a more robust solution for real-time updates in this demo.
+  useEffect(() => {
+    const client = new Client({
+      webSocketFactory: () => new (SockJS as any)("/ws"),
+      reconnectDelay: 5000,
+      onConnect: () => {
+        client.subscribe(`/topic/tenant/${activeTenant}/messages`, (frame) => {
+          const dto = JSON.parse(frame.body);
+          const convId: number = dto.conversationId;
+          if (!convId) return;
 
-  const tenantConvs = conversations.filter((c: { tenantId: number; channel: any; }) =>
+          const normalized = { ...normalizeMsg(dto), isNew: true };
+
+          setMessages(prev => ({
+            ...prev,
+            [convId]: [...(prev[convId] || []), normalized],
+          }));
+
+          setConversations(prev =>
+            prev
+              .map(c =>
+                c.id === convId
+                  ? {
+                      ...c,
+                      preview: dto.contenido ?? "",
+                      time: "ahora",
+                      unread: activeConvRef.current?.id === convId ? 0 : c.unread + 1,
+                    }
+                  : c
+              )
+              .sort((a, b) => (a.id === convId ? -1 : b.id === convId ? 1 : 0))
+          );
+        });
+      },
+    });
+
+    client.activate();
+    return () => { client.deactivate(); };
+  }, [activeTenant]);
+
+  const tenantConvs = conversations.filter((c: { tenantId: number; channel: any }) =>
     c.tenantId === activeTenant && (!channelFilter || c.channel === channelFilter)
   );
 
-  const totalUnread = conversations.filter((c: { tenantId: number; }) => c.tenantId === activeTenant).reduce((s: any, c: { unread: any; }) => s + c.unread, 0);
+  const totalUnread = conversations
+    .filter((c: { tenantId: number }) => c.tenantId === activeTenant)
+    .reduce((s: number, c: { unread: number }) => s + c.unread, 0);
 
-  const handleSelectConv = (conv: any) => {
+  const handleSelectConv = async (conv: any) => {
     setActiveConv(conv);
-    setConversations((prev: any[]) => prev.map((c: { id: any; }) => c.id === conv.id ? { ...c, unread: 0 } : c));
+    setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread: 0 } : c));
+    try {
+      const [msgs] = await Promise.all([getMessages(conv.id), markAsRead(conv.id)]);
+      setMessages(prev => ({ ...prev, [conv.id]: msgs.map(normalizeMsg) }));
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!inputValue.trim() || !activeConv) return;
-    const msg = { id: Date.now(), txt: inputValue.trim(), out: true, time: new Date().toLocaleTimeString("es-MX", { hour:"2-digit", minute:"2-digit" }) };
-    setMessages(prev => ({ ...prev, [activeConv.id]: [...(prev[activeConv.id] || []), msg] }));
-    setConversations((prev: any[]) => prev.map((c: { id: any; }) => c.id === activeConv.id ? { ...c, preview: inputValue.trim(), time: "ahora" } : c));
+    const text = inputValue.trim();
     setInputValue("");
+    try {
+      const dto = await sendMessage(activeConv.id, text);
+      const msg = { ...normalizeMsg(dto), isNew: false };
+      setMessages(prev => ({ ...prev, [activeConv.id]: [...(prev[activeConv.id] || []), msg] }));
+      setConversations(prev =>
+        prev.map(c => c.id === activeConv.id ? { ...c, preview: text, time: "ahora" } : c)
+      );
+    } catch (e) {
+      console.error(e);
+    }
   };
 
-  const handleKey = (e: { key: string; shiftKey: any; preventDefault: () => void; }) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); } };
+  const handleKey = (e: { key: string; shiftKey: any; preventDefault: () => void }) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
+  };
 
   return (
     <>
@@ -164,7 +207,7 @@ export default function LeadsApp() {
                     {conv.unread > 0 && <span className="unread-badge">{conv.unread}</span>}
                   </div>
                   <div className={`conv-preview ${conv.unread > 0 ? "bold" : ""}`}>
-                    {showTyping === conv.id ? "Escribiendo..." : conv.preview}
+                    {conv.preview}
                   </div>
                 </div>
               </div>
@@ -204,15 +247,6 @@ export default function LeadsApp() {
                   </div>
                 ))}
 
-                {showTyping === activeConv.id && (
-                  <div className="msg-row">
-                    <div className="typing-bubble">
-                      <div className="typing">
-                        <span /><span /><span />
-                      </div>
-                    </div>
-                  </div>
-                )}
                 <div ref={msgsEndRef} />
               </div>
 

@@ -7,6 +7,7 @@ import java.time.LocalDateTime;
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class MessageDTO {
     private Long id;
+    private Long conversationId;
     private String externalMessageId;
     private String contenido;
     private String mediaUrl;
@@ -20,6 +21,7 @@ public class MessageDTO {
     public static MessageDTO from(Message m) {
         return MessageDTO.builder()
             .id(m.getId())
+            .conversationId(m.getConversation().getId())
             .externalMessageId(m.getExternalMessageId())
             .contenido(m.getContenido())
             .mediaUrl(m.getMediaUrl())

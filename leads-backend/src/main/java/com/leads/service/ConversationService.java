@@ -46,4 +46,9 @@ public class ConversationService {
         Long total = convRepo.totalUnreadByTenant(tenantId);
         return total != null ? total : 0L;
     }
+
+    @Transactional
+    public MessageDTO sendMessage(Long conversationId, String contenido) {
+        return leadService.sendOutgoing(conversationId, contenido);
+    }
 }

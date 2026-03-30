@@ -12,13 +12,15 @@
   "dependencies": {
     "@react-navigation/native": "^7.2.0",
     "@react-navigation/stack": "^7.8.7",
+    "@stomp/stompjs": "^7.3.0",
     "axios": "^1.13.6",
     "expo-status-bar": "^55.0.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-native-safe-area-context": "^5.7.0",
     "react-native-screens": "^4.24.0",
-    "react-router-dom": "^7.13.2"
+    "react-router-dom": "^7.13.2",
+    "sockjs-client": "^1.6.1"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
@@ -28,6 +30,7 @@
     "@types/node": "^24.12.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "@types/sockjs-client": "^1.5.4",
     "@vitejs/plugin-react": "^6.0.1",
     "babel-plugin-react-compiler": "^1.0.0",
     "eslint": "^9.39.4",
