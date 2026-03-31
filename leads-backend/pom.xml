@@ -78,6 +78,12 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
+        <!-- Actuator (health, info) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
+
         <!-- Scheduler -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

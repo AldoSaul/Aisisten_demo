@@ -207,6 +207,8 @@ Run these steps after starting the backend with `mvn spring-boot:run`. Replace `
 
 ```powershell
 curl -s http://localhost:8080/actuator/health
+
+Invoke-RestMethod http://localhost:8080/actuator/health
 ```
 Expected: `{"status":"UP"}`
 
@@ -214,6 +216,8 @@ Expected: `{"status":"UP"}`
 
 ```powershell
 curl -s http://localhost:8080/api/v1/tenants/1/conversations | ConvertFrom-Json | ConvertTo-Json -Depth 5
+
+Invoke-RestMethod http://localhost:8080/api/v1/tenants/1/conversations | ConvertTo-Json -Depth 5
 ```
 Expected: `200 OK`, `content` array of conversation objects.
 Check that `lastMessageAt` is an ISO string, not an array — if it's an array, the Jackson property is missing from `application.properties`.
@@ -222,6 +226,8 @@ Check that `lastMessageAt` is an ISO string, not an array — if it's an array, 
 
 ```powershell
 curl -s http://localhost:8080/api/v1/conversations/1/messages | ConvertFrom-Json | ConvertTo-Json -Depth 5
+
+Invoke-RestMethod http://localhost:8080/api/v1/conversations/1/messages | ConvertTo-Json -Depth 5
 ```
 Expected: `200 OK`, `content` array. `sentAt` and `createdAt` must be ISO strings.
 
@@ -231,6 +237,11 @@ Expected: `200 OK`, `content` array. `sentAt` and `createdAt` must be ISO string
 curl -s -X POST http://localhost:8080/api/v1/conversations/1/messages `
   -H "Content-Type: application/json" `
   -d '{"contenido": "Hola, en que te puedo ayudar?"}' | ConvertFrom-Json | ConvertTo-Json -Depth 5
+
+Invoke-RestMethod -Method POST `
+  -Uri "http://localhost:8080/api/v1/conversations/1/messages" `
+  -ContentType "application/json" `
+  -Body '{"contenido": "Hola, en que te puedo ayudar?"}' | ConvertTo-Json -Depth 5
 ```
 Expected: `201 Created`. Verify in the response body:
 - `esEntrante` is `false`
@@ -241,6 +252,10 @@ Expected: `201 Created`. Verify in the response body:
 
 ```powershell
 curl -s -X PATCH http://localhost:8080/api/v1/conversations/1/read -w " HTTP %{http_code}"
+
+$response = Invoke-WebRequest -Uri http://localhost:8080/api/v1/conversations/1/read -Method PATCH
+$response.Content
+"HTTP $($response.StatusCode)"
 ```
 Expected: ` HTTP 200`
 
@@ -248,6 +263,8 @@ Expected: ` HTTP 200`
 
 ```powershell
 curl -s http://localhost:8080/api/v1/tenants/1/unread-count
+
+Invoke-RestMethod http://localhost:8080/api/v1/tenants/1/unread-count | ConvertTo-Json -Depth 5
 ```
 Expected: `{"total": N}`
 

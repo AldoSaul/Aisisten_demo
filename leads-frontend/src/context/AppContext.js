@@ -25,8 +25,11 @@ export function AppProvider({ children }) {
   // Load conversations when tenant changes
   useEffect(() => {
     getConversations(activeTenant)
-      .then(data => setConversations(data.map(c => normalizeConv(c, activeTenant))))
-      .catch(console.error);
+      .then(data => {
+        console.debug('[mobile] normalized conversations', { tenantId: activeTenant, count: data.length });
+        setConversations(data.map(c => normalizeConv(c, activeTenant)));
+      })
+      .catch(error => console.error('[mobile] failed to load conversations', error));
   }, [activeTenant]);
 
   // WebSocket: reconnect when tenant changes
@@ -77,9 +80,10 @@ export function AppProvider({ children }) {
     );
     try {
       const [msgs] = await Promise.all([getMessages(convId), markAsRead(convId)]);
+      console.debug('[mobile] normalized messages', { conversationId: convId, count: msgs.length });
       setMessages(prev => ({ ...prev, [convId]: msgs.map(normalizeMsg) }));
     } catch (e) {
-      console.error(e);
+      console.error('[mobile] failed to load messages', e);
     }
   };
 
@@ -95,7 +99,7 @@ export function AppProvider({ children }) {
         prev.map(c => (c.id === convId ? { ...c, preview: text, time: 'ahora' } : c))
       );
     } catch (e) {
-      console.error(e);
+      console.error('[mobile] failed to send message', e);
     }
   };
 
