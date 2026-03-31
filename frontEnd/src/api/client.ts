@@ -8,12 +8,28 @@ const api = axios.create({ baseURL: "" }); // Base URL is empty because Vite's p
 export const getConversations = (tenantId: number): Promise<any[]> =>
   api
     .get(`/api/v1/tenants/${tenantId}/conversations`, { params: { size: 100 } })
-    .then(r => r.data.content ?? []);
+    .then(r => {
+      const items = r.data.content ?? [];
+      console.debug("[web] conversations response", {
+        tenantId,
+        isArray: Array.isArray(items),
+        count: items.length,
+      });
+      return items;
+    });
 
 export const getMessages = (conversationId: number): Promise<any[]> =>
   api
     .get(`/api/v1/conversations/${conversationId}/messages`, { params: { size: 200 } })
-    .then(r => r.data.content ?? []);
+    .then(r => {
+      const items = r.data.content ?? [];
+      console.debug("[web] messages response", {
+        conversationId,
+        isArray: Array.isArray(items),
+        count: items.length,
+      });
+      return items;
+    });
 
 export const markAsRead = (conversationId: number): Promise<void> =>
   api.patch(`/api/v1/conversations/${conversationId}/read`).then(() => {});

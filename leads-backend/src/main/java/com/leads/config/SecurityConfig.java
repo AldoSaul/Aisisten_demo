@@ -25,6 +25,7 @@ public class SecurityConfig {
                 .requestMatchers("/webhook/**").permitAll()
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/ws/**").permitAll()
+                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                 // TODO(phase-5): remove this line when JWT is added
                 .requestMatchers("/api/v1/**").permitAll()
                 .anyRequest().authenticated()

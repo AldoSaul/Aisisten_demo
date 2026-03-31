@@ -27,8 +27,11 @@ export default function LeadsApp() {
   // Load conversations when tenant changes
   useEffect(() => {
     getConversations(activeTenant)
-      .then((data: any[]) => setConversations(data.map(c => normalizeConv(c, activeTenant))))
-      .catch(console.error);
+      .then((data: any[]) => {
+        console.debug("[web] normalized conversations", { tenantId: activeTenant, count: data.length });
+        setConversations(data.map(c => normalizeConv(c, activeTenant)));
+      })
+      .catch((error) => console.error("[web] failed to load conversations", error));
   }, [activeTenant]);
 
   // WebSocket: subscribe to real-time messages for active tenant
@@ -88,9 +91,10 @@ export default function LeadsApp() {
     setConversations(prev => prev.map(c => c.id === conv.id ? { ...c, unread: 0 } : c));
     try {
       const [msgs] = await Promise.all([getMessages(conv.id), markAsRead(conv.id)]);
+      console.debug("[web] normalized messages", { conversationId: conv.id, count: msgs.length });
       setMessages(prev => ({ ...prev, [conv.id]: msgs.map(normalizeMsg) }));
     } catch (e) {
-      console.error(e);
+      console.error("[web] failed to load messages", e);
     }
   };
 
@@ -106,7 +110,7 @@ export default function LeadsApp() {
         prev.map(c => c.id === activeConv.id ? { ...c, preview: text, time: "ahora" } : c)
       );
     } catch (e) {
-      console.error(e);
+      console.error("[web] failed to send message", e);
     }
   };
 
