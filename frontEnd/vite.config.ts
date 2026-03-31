@@ -14,4 +14,7 @@ export default defineConfig({
       '/ws':  'http://localhost:8080',
     },
   },
+  define: {
+  global: 'globalThis',
+}
 })
