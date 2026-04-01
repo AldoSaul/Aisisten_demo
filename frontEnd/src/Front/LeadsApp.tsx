@@ -13,8 +13,9 @@ export default function LeadsApp() {
   const [conversations, setConversations] = useState<any[]>([]);
   const [messages,      setMessages]      = useState<Record<number, any[]>>({});
   const [inputValue,    setInputValue]    = useState<string>("");
-  const msgsEndRef    = useRef<HTMLDivElement>(null);
-  const activeConvRef = useRef<any>(null);
+  const msgsEndRef     = useRef<HTMLDivElement>(null);
+  const activeConvRef  = useRef<any>(null);
+  const stompClientRef = useRef<Client | null>(null);
 
   // Keep activeConv accessible inside WS callback without stale closure
   useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
@@ -40,6 +41,8 @@ export default function LeadsApp() {
   // Also, remember to handle WebSocket connection errors and edge cases in a real application.
   //SockJS doesn't support native WebSocket features like automatic reconnection or heartbeats, so using @stomp/stompjs with SockJS provides a more robust solution for real-time updates in this demo.
   useEffect(() => {
+    if (stompClientRef.current?.active) return; // StrictMode guard: skip second mount
+
     const client = new Client({
       webSocketFactory: () => new (SockJS as any)("/ws"),
       reconnectDelay: 5000,
@@ -51,10 +54,11 @@ export default function LeadsApp() {
 
           const normalized = { ...normalizeMsg(dto), isNew: true };
 
-          setMessages(prev => ({
-            ...prev,
-            [convId]: [...(prev[convId] || []), normalized],
-          }));
+          setMessages(prev => {
+            const existing = prev[convId] || [];
+            if (existing.some(m => m.id === normalized.id)) return prev; // deduplicate: already added by handleSend
+            return { ...prev, [convId]: [...existing, normalized] };
+          });
 
           setConversations(prev =>
             prev
@@ -74,8 +78,12 @@ export default function LeadsApp() {
       },
     });
 
+    stompClientRef.current = client;
     client.activate();
-    return () => { client.deactivate(); };
+    return () => {
+      client.deactivate();
+      stompClientRef.current = null;
+    };
   }, [activeTenant]);
 
   const tenantConvs = conversations.filter((c: { tenantId: number; channel: any }) =>
@@ -105,7 +113,11 @@ export default function LeadsApp() {
     try {
       const dto = await sendMessage(activeConv.id, text);
       const msg = { ...normalizeMsg(dto), isNew: false };
-      setMessages(prev => ({ ...prev, [activeConv.id]: [...(prev[activeConv.id] || []), msg] }));
+      setMessages(prev => {
+        const existing = prev[activeConv.id] || [];
+        if (existing.some(m => m.id === msg.id)) return prev; // deduplicate: WS may have arrived first
+        return { ...prev, [activeConv.id]: [...existing, msg] };
+      });
       setConversations(prev =>
         prev.map(c => c.id === activeConv.id ? { ...c, preview: text, time: "ahora" } : c)
       );
