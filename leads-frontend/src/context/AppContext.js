@@ -5,76 +5,65 @@ import React, {
   useEffect,
   useRef,
 } from 'react';
-import { ALL_CONVS, ALL_MSGS, FAKE_INCOMING } from '../constants/data';
+import { normalizeConv, normalizeMsg } from '../constants/data';
+import { getConversations, getMessages, markAsRead, sendMessage as apiSend } from '../api/conversations';
+import { createStompClient } from '../ws/client';
 
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
   const [activeTenant,  setActiveTenant]  = useState(1);
   const [channelFilter, setChannelFilter] = useState(null);
-  const [conversations, setConversations] = useState(ALL_CONVS);
-  const [messages,      setMessages]      = useState({ ...ALL_MSGS });
-  const [showTyping,    setShowTyping]    = useState(false);
+  const [conversations, setConversations] = useState([]);
+  const [messages,      setMessages]      = useState({});
+  const [showTyping,    setShowTyping]    = useState(false); // kept for ChatScreen compat
   const [activeConvId,  setActiveConvId]  = useState(null);
 
-  const fakeIdx        = useRef(0);
-  const activeTenantRef = useRef(activeTenant);
   const activeConvIdRef = useRef(activeConvId);
-
-  // Keep refs in sync so the interval closure always sees the latest values
-  useEffect(() => { activeTenantRef.current = activeTenant; }, [activeTenant]);
   useEffect(() => { activeConvIdRef.current = activeConvId; }, [activeConvId]);
 
-  // Simulate incoming messages every 12 s
+  // Load conversations when tenant changes
   useEffect(() => {
-    const timer = setInterval(() => {
-      const item = FAKE_INCOMING[fakeIdx.current % FAKE_INCOMING.length];
-      fakeIdx.current += 1;
+    getConversations(activeTenant)
+      .then(data => {
+        console.debug('[mobile] normalized conversations', { tenantId: activeTenant, count: data.length });
+        setConversations(data.map(c => normalizeConv(c, activeTenant)));
+      })
+      .catch(error => console.error('[mobile] failed to load conversations', error));
+  }, [activeTenant]);
 
-      const conv = ALL_CONVS.find(c => c.id === item.convId);
-      if (!conv || conv.tenantId !== activeTenantRef.current) return;
+  // WebSocket: reconnect when tenant changes
+  useEffect(() => {
+    const client = createStompClient(activeTenant, (dto) => {
+      const convId = dto.conversationId;
+      if (!convId) return;
 
-      setShowTyping(item.convId);
+      const normalized = { ...normalizeMsg(dto), isNew: true };
 
-      setTimeout(() => {
-        setShowTyping(false);
+      setMessages(prev => ({
+        ...prev,
+        [convId]: [...(prev[convId] || []), normalized],
+      }));
 
-        const newMsg = {
-          id:    Date.now(),
-          txt:   item.txt,
-          out:   false,
-          time:  new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
-          isNew: true,
-        };
+      setConversations(prev =>
+        prev
+          .map(c =>
+            c.id === convId
+              ? {
+                  ...c,
+                  preview: dto.contenido ?? '',
+                  time:    'ahora',
+                  unread:  activeConvIdRef.current === convId ? 0 : c.unread + 1,
+                }
+              : c
+          )
+          .sort((a, b) => (a.id === convId ? -1 : b.id === convId ? 1 : 0))
+      );
+    });
 
-        setMessages(prev => ({
-          ...prev,
-          [item.convId]: [...(prev[item.convId] || []), newMsg],
-        }));
-
-        setConversations(prev =>
-          prev
-            .map(c =>
-              c.id === item.convId
-                ? {
-                    ...c,
-                    preview: item.txt,
-                    time:    'ahora',
-                    unread:  c.unread + (activeConvIdRef.current === item.convId ? 0 : 1),
-                  }
-                : c
-            )
-            .sort((a, b) => {
-              if (a.id === item.convId) return -1;
-              if (b.id === item.convId) return  1;
-              return 0;
-            })
-        );
-      }, 2200);
-    }, 12000);
-
-    return () => clearInterval(timer);
-  }, []); // intentionally empty — we use refs for dynamic values
+    client.activate();
+    return () => { client.deactivate(); };
+  }, [activeTenant]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -84,27 +73,34 @@ export function AppProvider({ children }) {
     setChannelFilter(null);
   };
 
-  const selectConv = (convId) => {
+  const selectConv = async (convId) => {
     setActiveConvId(convId);
     setConversations(prev =>
       prev.map(c => (c.id === convId ? { ...c, unread: 0 } : c))
     );
+    try {
+      const [msgs] = await Promise.all([getMessages(convId), markAsRead(convId)]);
+      console.debug('[mobile] normalized messages', { conversationId: convId, count: msgs.length });
+      setMessages(prev => ({ ...prev, [convId]: msgs.map(normalizeMsg) }));
+    } catch (e) {
+      console.error('[mobile] failed to load messages', e);
+    }
   };
 
-  const sendMessage = (convId, text) => {
-    const msg = {
-      id:   Date.now(),
-      txt:  text,
-      out:  true,
-      time: new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }),
-    };
-    setMessages(prev => ({
-      ...prev,
-      [convId]: [...(prev[convId] || []), msg],
-    }));
-    setConversations(prev =>
-      prev.map(c => (c.id === convId ? { ...c, preview: text, time: 'ahora' } : c))
-    );
+  const sendMessage = async (convId, text) => {
+    try {
+      const dto = await apiSend(convId, text);
+      const msg = normalizeMsg(dto);
+      setMessages(prev => ({
+        ...prev,
+        [convId]: [...(prev[convId] || []), msg],
+      }));
+      setConversations(prev =>
+        prev.map(c => (c.id === convId ? { ...c, preview: text, time: 'ahora' } : c))
+      );
+    } catch (e) {
+      console.error('[mobile] failed to send message', e);
+    }
   };
 
   // ── Derived state ─────────────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import com.leads.model.Channel;
 import com.leads.service.ConversationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -51,4 +52,15 @@ public class ConversationController {
     public ResponseEntity<Map<String, Long>> unreadCount(@PathVariable Long tenantId) {
         return ResponseEntity.ok(Map.of("total", convService.totalUnread(tenantId)));
     }
+
+    /** Envía un mensaje saliente (agente → lead) */
+    @PostMapping("/conversations/{conversationId}/messages")
+    public ResponseEntity<MessageDTO> sendMessage(
+            @PathVariable Long conversationId,
+            @RequestBody SendMessageRequest req) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(convService.sendMessage(conversationId, req.contenido()));
+    }
+
+    record SendMessageRequest(String contenido) {}
 }

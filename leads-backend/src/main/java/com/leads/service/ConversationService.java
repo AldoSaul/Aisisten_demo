@@ -19,6 +19,7 @@ public class ConversationService {
     private final MessageRepository      msgRepo;
     private final LeadService            leadService;
 
+    @Transactional(readOnly = true)
     public Page<ConversationDTO> getConversations(Long tenantId, Channel channel, int page, int size) {
         var pageable = PageRequest.of(page, size);
         if (channel != null) {
@@ -31,6 +32,7 @@ public class ConversationService {
             .map(ConversationDTO::from);
     }
 
+    @Transactional(readOnly = true)
     public Page<MessageDTO> getMessages(Long conversationId, int page, int size) {
         return msgRepo
             .findByConversationIdOrderByCreatedAtAsc(conversationId, PageRequest.of(page, size))
@@ -45,5 +47,10 @@ public class ConversationService {
     public Long totalUnread(Long tenantId) {
         Long total = convRepo.totalUnreadByTenant(tenantId);
         return total != null ? total : 0L;
+    }
+
+    @Transactional
+    public MessageDTO sendMessage(Long conversationId, String contenido) {
+        return leadService.sendOutgoing(conversationId, contenido);
     }
 }
