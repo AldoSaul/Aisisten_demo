@@ -1,17 +1,32 @@
 import { useState } from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { login, type UserSession } from '../api/auth';
 import '../CSS/leadCss.tsx';
 
-export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
+export default function LoginScreen({ onLogin }: { onLogin: (user: UserSession) => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email && password) {
-      onLogin();
-      navigate('/');
+    setSubmitting(true);
+    setError(null);
+    try {
+      const user = await login(email.trim(), password);
+      onLogin(user);
+      navigate('/', { replace: true });
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403)) {
+        setError('Invalid email or password');
+      } else {
+        setError('Unable to login right now');
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -59,8 +74,25 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
             />
           </div>
 
+          {error && (
+            <div
+              style={{
+                marginBottom: '16px',
+                color: '#B42318',
+                backgroundColor: '#FEF3F2',
+                border: '1px solid #FECACA',
+                borderRadius: '4px',
+                fontSize: '13px',
+                padding: '10px',
+              }}
+            >
+              {error}
+            </div>
+          )}
+
           <button
             type="submit"
+            disabled={submitting}
             style={{
               width: '100%',
               padding: '12px',
@@ -70,12 +102,17 @@ export default function LoginScreen({ onLogin }: { onLogin: () => void }) {
               borderRadius: '4px',
               fontSize: '16px',
               fontWeight: '600',
-              cursor: 'pointer',
+              cursor: submitting ? 'not-allowed' : 'pointer',
+              opacity: submitting ? 0.7 : 1,
               transition: 'background-color 0.2s',
             }}
           >
-            Login
+            {submitting ? 'Signing in...' : 'Login'}
           </button>
+
+          <p style={{ marginTop: '14px', textAlign: 'center', fontSize: '12px', color: '#666' }}>
+            Demo user: admin@admin.com / admin
+          </p>
         </form>
       </div>
     </div>
