@@ -24,6 +24,22 @@ CREATE TABLE tenants (
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ── Users (login web/app) ────────────────────────────────────
+CREATE TABLE users (
+  id            BIGINT        NOT NULL AUTO_INCREMENT,
+  email         VARCHAR(255)  NOT NULL,
+  password_hash VARCHAR(255)  NOT NULL,
+  role          ENUM('ADMIN','AGENT') NOT NULL,
+  tenant_id     BIGINT        NOT NULL,
+  active        TINYINT(1)    NOT NULL DEFAULT 1,
+  created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uk_users_email (email),
+  KEY idx_users_tenant (tenant_id),
+  CONSTRAINT fk_users_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ── Leads (personas que escriben) ───────────────────────────
 CREATE TABLE leads (
   id              BIGINT       NOT NULL AUTO_INCREMENT,
@@ -84,6 +100,7 @@ SELECT * FROM messages;
 SELECT * FROM conversations;
 SELECT * FROM leads;
 SELECT * FROM tenants;
+SELECT * FROM users;
 
 
 
@@ -101,6 +118,10 @@ INSERT INTO tenants (nombre, facebook_page_id, instagram_account_id, whatsapp_ph
 ('Agencia Digital Nexus',   'page_001', 'ig_001', 'wa_001', 'demo_token_nexus',   DATE_ADD(NOW(), INTERVAL 55 DAY), 1),
 ('Restaurante Don Tacos',   'page_002', 'ig_002', 'wa_002', 'demo_token_tacos',   DATE_ADD(NOW(), INTERVAL 45 DAY), 1),
 ('Clínica Salud Total',     'page_003', 'ig_003', 'wa_003', 'demo_token_clinica', DATE_ADD(NOW(), INTERVAL 12 DAY), 1);
+
+-- ── Users (dev login) ────────────────────────────────────────
+INSERT INTO users (email, password_hash, role, tenant_id, active, created_at, updated_at) VALUES
+('admin@admin.com', '$2a$10$LgjiXX.UeJO6En1d.ooyB.1xM47dNv2D8pl6Vp44FfXo2AZnhKOXO', 'ADMIN', 1, 1, NOW(), NOW());
  
 -- ── Leads ─────────────────────────────────────────────────────
 INSERT INTO leads (sender_id, channel, nombre, email, telefono, tenant_id) VALUES

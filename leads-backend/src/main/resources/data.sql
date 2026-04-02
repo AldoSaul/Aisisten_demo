@@ -9,6 +9,10 @@ INSERT IGNORE INTO tenants (id, nombre, facebook_page_id, instagram_account_id, 
 (2, 'Restaurante Don Tacos',  'page_002', 'ig_002', 'wa_002', 'demo_token_tacos',   DATE_ADD(NOW(), INTERVAL 45 DAY), 1),
 (3, 'Clínica Salud Total',    'page_003', 'ig_003', 'wa_003', 'demo_token_clinica', DATE_ADD(NOW(), INTERVAL 12 DAY), 1);
 
+-- ── Users (dev login) ────────────────────────────────────────
+INSERT IGNORE INTO users (id, email, password_hash, role, tenant_id, active, created_at, updated_at) VALUES
+(1, 'admin@admin.com', '$2a$10$LgjiXX.UeJO6En1d.ooyB.1xM47dNv2D8pl6Vp44FfXo2AZnhKOXO', 'ADMIN', 1, 1, NOW(), NOW());
+
 -- ── Leads ─────────────────────────────────────────────────────
 INSERT IGNORE INTO leads (id, sender_id, channel, nombre, email, telefono, tenant_id) VALUES
 (1, '521234567890', 'WHATSAPP',  'Carlos Mendoza',   'carlos@gmail.com',   '+52 1 234 567 890', 1),
@@ -61,3 +65,6 @@ INSERT IGNORE INTO messages (external_message_id, conversation_id, channel, cont
 ('ext_fb_020', 7, 'FACEBOOK', 'Tienen opción sin gluten en el menú?', 'READ', 1, DATE_SUB(NOW(), INTERVAL 50 MINUTE)),
 ('ext_fb_021', 7, 'FACEBOOK', 'Hola Roberto! Sí contamos con opciones sin gluten. ¿Cuáles te interesan?', 'READ', 0, DATE_SUB(NOW(), INTERVAL 45 MINUTE)),
 ('ext_fb_022', 7, 'FACEBOOK', 'Qué bueno! Me interesan los tacos y las quesadillas', 'READ', 1, DATE_SUB(NOW(), INTERVAL 44 MINUTE));
+
+-- Dev verification (optional)
+-- SELECT id, email, role, tenant_id, active FROM users;

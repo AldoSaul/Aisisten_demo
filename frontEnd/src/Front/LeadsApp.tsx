@@ -5,8 +5,11 @@ import { css } from "../CSS/leadCss.tsx";
 import { TENANTS, CH_COLOR, CH_LABEL, CH_LIGHT, normalizeConv, normalizeMsg } from "../helper/data.tsx";
 import { getConversations, getMessages, markAsRead, sendMessage } from "../api/client.ts";
 
+type LeadsAppProps = {
+  onLogout: () => void;
+};
 
-export default function LeadsApp() {
+export default function LeadsApp({ onLogout }: LeadsAppProps) {
   const [activeTenant,  setActiveTenant]  = useState<number>(1);
   const [channelFilter, setChannelFilter] = useState<string | null>(null);
   const [activeConv,    setActiveConv]    = useState<any>(null);
@@ -139,6 +142,24 @@ export default function LeadsApp() {
         <aside className="sidebar">
           <div className="sidebar-brand">
             <h1>Leads<span>Hub</span></h1>
+            <button
+              type="button"
+              onClick={onLogout}
+              style={{
+                marginTop: 12,
+                width: "100%",
+                border: "1px solid #5a5248",
+                borderRadius: 8,
+                background: "transparent",
+                color: "#f0ece4",
+                padding: "8px 10px",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              Sign out
+            </button>
           </div>
           <div className="sidebar-section">Cuentas</div>
           {TENANTS.map((t: any) => (
