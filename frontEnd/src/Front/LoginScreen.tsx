@@ -1,10 +1,10 @@
 import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import { login, type UserSession } from '../api/auth';
+import { login, type LoginResponse } from '../api/auth';
 import '../CSS/leadCss.tsx';
 
-export default function LoginScreen({ onLogin }: { onLogin: (user: UserSession) => void }) {
+export default function LoginScreen({ onLogin }: { onLogin: (session: LoginResponse) => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -16,8 +16,8 @@ export default function LoginScreen({ onLogin }: { onLogin: (user: UserSession) 
     setSubmitting(true);
     setError(null);
     try {
-      const user = await login(email.trim(), password);
-      onLogin(user);
+      const session = await login(email.trim(), password);
+      onLogin(session);
       navigate('/', { replace: true });
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && (err.response?.status === 401 || err.response?.status === 403)) {

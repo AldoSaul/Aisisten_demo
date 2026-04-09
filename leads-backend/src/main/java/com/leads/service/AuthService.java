@@ -5,6 +5,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.leads.config.jwt.JwtService;
 import com.leads.dto.auth.LoginRequest;
 import com.leads.dto.auth.LoginResponse;
 import com.leads.dto.auth.UserSessionDto;
@@ -19,6 +20,7 @@ public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtService jwtService;
 
     @Transactional(readOnly = true)
     public LoginResponse login(LoginRequest request) {
@@ -35,6 +37,8 @@ public class AuthService {
         }
 
         return LoginResponse.builder()
+            .accessToken(jwtService.generateToken(user))
+            .tokenType("Bearer")
             .user(toSessionDto(user))
             .build();
     }
