@@ -91,6 +91,162 @@ CREATE TABLE messages (
   CONSTRAINT fk_msg_conv FOREIGN KEY (conversation_id) REFERENCES conversations(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ── Integration providers catalog ─────────────────────────────
+CREATE TABLE integration_providers (
+  id                    BIGINT       NOT NULL AUTO_INCREMENT,
+  provider_type         VARCHAR(50)  NOT NULL,
+  display_name          VARCHAR(120) NOT NULL,
+  enabled               TINYINT(1)   NOT NULL DEFAULT 1,
+  supports_webhooks     TINYINT(1)   NOT NULL DEFAULT 1,
+  supports_asset_sync   TINYINT(1)   NOT NULL DEFAULT 1,
+  created_at            DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_integration_provider_type (provider_type)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Integration connections (tenant ↔ provider auth lifecycle) ──
+CREATE TABLE integration_connections (
+  id                     BIGINT       NOT NULL AUTO_INCREMENT,
+  public_id              VARCHAR(80)  NOT NULL,
+  tenant_id              BIGINT       NOT NULL,
+  provider_type          VARCHAR(50)  NOT NULL,
+  status                 VARCHAR(40)  NOT NULL,
+  auth_flow_status       VARCHAR(40)  NOT NULL,
+  external_connection_id VARCHAR(255),
+  auth_state             VARCHAR(255),
+  auth_started_at        DATETIME,
+  auth_completed_at      DATETIME,
+  last_error             VARCHAR(500),
+  last_synced_at         DATETIME,
+  connected_at           DATETIME,
+  disconnected_at        DATETIME,
+  created_at             DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at             DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_integration_connection_public_id (public_id),
+  UNIQUE KEY uq_integration_connection_tenant_provider_external (tenant_id, provider_type, external_connection_id),
+  UNIQUE KEY uq_integration_connection_auth_state (auth_state),
+  KEY idx_integration_connection_tenant_provider (tenant_id, provider_type),
+  CONSTRAINT fk_integration_connection_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Integration accounts discovered/linked from provider ───────
+CREATE TABLE integration_accounts (
+  id                   BIGINT       NOT NULL AUTO_INCREMENT,
+  tenant_id            BIGINT       NOT NULL,
+  connection_id        BIGINT       NOT NULL,
+  provider_type        VARCHAR(50)  NOT NULL,
+  external_account_id  VARCHAR(255) NOT NULL,
+  display_name         VARCHAR(255),
+  active               TINYINT(1)   NOT NULL DEFAULT 1,
+  last_synced_at       DATETIME,
+  created_at           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at           DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_integration_account_tenant_provider_external (tenant_id, provider_type, external_account_id),
+  KEY idx_integration_account_connection (connection_id),
+  CONSTRAINT fk_integration_account_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+  CONSTRAINT fk_integration_account_connection FOREIGN KEY (connection_id) REFERENCES integration_connections(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Assets (pages, profiles, phone numbers, etc.) ──────────────
+CREATE TABLE integration_assets (
+  id                  BIGINT       NOT NULL AUTO_INCREMENT,
+  tenant_id           BIGINT       NOT NULL,
+  connection_id       BIGINT       NOT NULL,
+  account_id          BIGINT       NOT NULL,
+  provider_type       VARCHAR(50)  NOT NULL,
+  asset_type          VARCHAR(50)  NOT NULL,
+  external_asset_id   VARCHAR(255) NOT NULL,
+  display_name        VARCHAR(255),
+  metadata_json       TEXT,
+  active              TINYINT(1)   NOT NULL DEFAULT 1,
+  last_synced_at      DATETIME,
+  created_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at          DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_integration_asset_account_type_external (account_id, asset_type, external_asset_id),
+  KEY idx_integration_asset_connection (connection_id),
+  CONSTRAINT fk_integration_asset_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+  CONSTRAINT fk_integration_asset_connection FOREIGN KEY (connection_id) REFERENCES integration_connections(id),
+  CONSTRAINT fk_integration_asset_account FOREIGN KEY (account_id) REFERENCES integration_accounts(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── OAuth metadata and token lifecycle ─────────────────────────
+CREATE TABLE oauth_connections (
+  id                 BIGINT       NOT NULL AUTO_INCREMENT,
+  connection_id      BIGINT       NOT NULL,
+  access_token       TEXT,
+  refresh_token      TEXT,
+  token_type         VARCHAR(50),
+  scope_csv          VARCHAR(1000),
+  expires_at         DATETIME,
+  provider_user_id   VARCHAR(255),
+  created_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_oauth_connection_connection (connection_id),
+  CONSTRAINT fk_oauth_connection_connection FOREIGN KEY (connection_id) REFERENCES integration_connections(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Webhook subscriptions per connection/provider ───────────────
+CREATE TABLE webhook_subscriptions (
+  id                        BIGINT       NOT NULL AUTO_INCREMENT,
+  connection_id             BIGINT       NOT NULL,
+  provider_type             VARCHAR(50)  NOT NULL,
+  external_subscription_id  VARCHAR(255) NOT NULL,
+  active                    TINYINT(1)   NOT NULL DEFAULT 1,
+  subscribed_at             DATETIME,
+  last_verified_at          DATETIME,
+  created_at                DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at                DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_webhook_subscription_connection_external (connection_id, external_subscription_id),
+  KEY idx_webhook_subscription_provider_active (provider_type, active),
+  CONSTRAINT fk_webhook_subscription_connection FOREIGN KEY (connection_id) REFERENCES integration_connections(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Raw webhook event logs for idempotency/audit ───────────────
+CREATE TABLE webhook_event_logs (
+  id                 BIGINT        NOT NULL AUTO_INCREMENT,
+  connection_id      BIGINT,
+  provider_type      VARCHAR(50)   NOT NULL,
+  external_event_id  VARCHAR(255),
+  request_signature  VARCHAR(500),
+  raw_payload        LONGTEXT      NOT NULL,
+  normalized_payload LONGTEXT,
+  status             VARCHAR(40)   NOT NULL,
+  processing_error   VARCHAR(1000),
+  received_at        DATETIME      NOT NULL,
+  processed_at       DATETIME,
+  created_at         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at         DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_webhook_event_provider_external (provider_type, external_event_id),
+  KEY idx_webhook_event_received_at (received_at),
+  CONSTRAINT fk_webhook_event_connection FOREIGN KEY (connection_id) REFERENCES integration_connections(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Channel identity mapping (future tenant/account routing) ───
+CREATE TABLE channel_identities (
+  id                 BIGINT       NOT NULL AUTO_INCREMENT,
+  tenant_id          BIGINT       NOT NULL,
+  connection_id      BIGINT,
+  provider_type      VARCHAR(50)  NOT NULL,
+  channel            ENUM('WHATSAPP','INSTAGRAM','FACEBOOK') NOT NULL,
+  external_id        VARCHAR(255) NOT NULL,
+  external_parent_id VARCHAR(255),
+  display_name       VARCHAR(255),
+  active             TINYINT(1)   NOT NULL DEFAULT 1,
+  created_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at         DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_channel_identity_tenant_channel_external (tenant_id, channel, external_id),
+  KEY idx_channel_identity_provider (provider_type),
+  CONSTRAINT fk_channel_identity_tenant FOREIGN KEY (tenant_id) REFERENCES tenants(id),
+  CONSTRAINT fk_channel_identity_connection FOREIGN KEY (connection_id) REFERENCES integration_connections(id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ── Usuario de aplicación (permisos mínimos) ─────────────────
 -- Ejecutar como root:
 -- CREATE USER 'leads_user'@'%' IDENTIFIED BY 'TU_PASSWORD_AQUI';

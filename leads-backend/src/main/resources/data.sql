@@ -13,6 +13,15 @@ INSERT IGNORE INTO tenants (id, nombre, facebook_page_id, instagram_account_id, 
 INSERT IGNORE INTO users (id, email, password_hash, role, tenant_id, active, created_at, updated_at) VALUES
 (1, 'admin@admin.com', '$2a$10$LgjiXX.UeJO6En1d.ooyB.1xM47dNv2D8pl6Vp44FfXo2AZnhKOXO', 'ADMIN', 1, 1, NOW(), NOW());
 
+-- ── Integration provider catalog (Phase 1 generic foundation) ──
+INSERT IGNORE INTO integration_providers (id, provider_type, display_name, enabled, supports_webhooks, supports_asset_sync, created_at) VALUES
+(1, 'META', 'Meta (Phase 1 Stub)', 1, 1, 1, NOW()),
+(2, 'WHATSAPP_CLOUD', 'WhatsApp Cloud (Phase 1 Stub)', 1, 1, 1, NOW()),
+(3, 'INSTAGRAM', 'Instagram (Phase 1 Stub)', 1, 1, 1, NOW()),
+(4, 'FACEBOOK_PAGES', 'Facebook Pages (Phase 1 Stub)', 1, 1, 1, NOW()),
+(5, 'TIKTOK', 'TikTok (Phase 1 Stub)', 1, 1, 1, NOW()),
+(6, 'CUSTOM', 'Generic Provider (Stub)', 1, 1, 1, NOW());
+
 -- ── Leads ─────────────────────────────────────────────────────
 INSERT IGNORE INTO leads (id, sender_id, channel, nombre, email, telefono, tenant_id) VALUES
 (1, '521234567890', 'WHATSAPP',  'Carlos Mendoza',   'carlos@gmail.com',   '+52 1 234 567 890', 1),

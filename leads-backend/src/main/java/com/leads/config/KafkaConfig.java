@@ -18,6 +18,9 @@ public class KafkaConfig {
     @Value("${kafka.topics.leads-new}")
     private String leadsNew;
 
+    @Value("${kafka.topics.integrations-webhook-normalized}")
+    private String integrationsWebhookNormalized;
+
     @Bean
     public NewTopic topicMessagesIncoming() {
         return TopicBuilder.name(messagesIncoming)
@@ -38,6 +41,14 @@ public class KafkaConfig {
     public NewTopic topicLeadsNew() {
         return TopicBuilder.name(leadsNew)
             .partitions(1)
+            .replicas(1)
+            .build();
+    }
+
+    @Bean
+    public NewTopic topicIntegrationsWebhookNormalized() {
+        return TopicBuilder.name(integrationsWebhookNormalized)
+            .partitions(3)
             .replicas(1)
             .build();
     }

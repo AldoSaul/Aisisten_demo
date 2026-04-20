@@ -1,6 +1,7 @@
 package com.leads.controller;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -11,9 +12,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.leads.dto.IncomingMessageEvent;
+import com.leads.integration.service.IntegrationWebhookService;
 import com.leads.service.KafkaProducerService;
 import com.leads.service.MessageRouterService;
 
@@ -31,6 +34,7 @@ public class WebhookController {
 
     private final MessageRouterService router;
     private final Optional<KafkaProducerService> kafka;
+    private final IntegrationWebhookService integrationWebhookService;
 
     /** Meta verifica que la URL es tuya con este GET */
     @GetMapping
@@ -45,6 +49,31 @@ public class WebhookController {
         }
         log.warn("Verificación de webhook fallida — token inválido");
         return ResponseEntity.status(403).build();
+    }
+
+    /**
+     * Legacy generic verification endpoint compatibility for old integrations.
+     * Preferred Phase 1 route is /api/v1/integrations/webhooks/{provider}.
+     */
+    @GetMapping("/{provider}")
+    public ResponseEntity<String> verifyByProvider(
+        @RequestParam Map<String, String> queryParams,
+        @RequestParam(name = "hub.challenge", required = false) String challenge,
+        @RequestParam(name = "hub.mode", required = false) String mode,
+        @RequestParam(name = "hub.verify_token", required = false) String token,
+        @PathVariable String provider
+    ) {
+        if ("meta".equalsIgnoreCase(provider)) {
+            if ("subscribe".equals(mode) && verifyToken.equals(token)) {
+                return ResponseEntity.ok(challenge);
+            }
+            return ResponseEntity.status(403).build();
+        }
+        String resolvedChallenge = integrationWebhookService.resolveVerificationChallenge(provider, queryParams);
+        if (resolvedChallenge == null || resolvedChallenge.isBlank()) {
+            return ResponseEntity.badRequest().build();
+        }
+        return ResponseEntity.ok(resolvedChallenge);
     }
 
     /** Meta envía los eventos aquí — se parsean y publican a Kafka inmediatamente */
