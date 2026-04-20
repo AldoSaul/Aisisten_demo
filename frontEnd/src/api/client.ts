@@ -1,9 +1,16 @@
-import axios from "axios";
+import axios, { type InternalAxiosRequestConfig } from "axios";
 
-// Create an Axios instance with a base URL. The base URL is empty because Vite's proxy will handle it if not changed to http://localhost:8080  
-// In development, Vite's proxy will forward API requests to the backend server at http://localhost:8080, so we can keep the base URL empty here. In production, you would set this to your actual backend URL. 
-// Note: If you change the base URL here, make sure to also update the WebSocket URL in LeadsApp.tsx to match, since both need to point to the same backend server for API and WebSocket communication to work correctly.   
-const api = axios.create({ baseURL: "" }); // Base URL is empty because Vite's proxy will handle it if not change to http://localhost:8080
+import { getAccessToken } from "../auth/session";
+
+const api = axios.create({ baseURL: "" });
+
+api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
+  const token = getAccessToken();
+  if (token) {
+    config.headers.set("Authorization", `Bearer ${token}`);
+  }
+  return config;
+});
 
 export const getConversations = (tenantId: number): Promise<any[]> =>
   api
@@ -38,3 +45,5 @@ export const sendMessage = (conversationId: number, contenido: string): Promise<
   api
     .post(`/api/v1/conversations/${conversationId}/messages`, { contenido })
     .then(r => r.data);
+
+export default api;
