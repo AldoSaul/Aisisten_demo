@@ -11,14 +11,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS } from '../constants/theme';
 
-export default function LoginScreen({ onLogin }) {
+export default function LoginScreen({ onLogin, authError, isSubmitting }) {
   const [email,    setEmail]    = useState('');
   const [password, setPassword] = useState('');
 
   const canSubmit = email.trim().length > 0 && password.trim().length > 0;
 
   const handleLogin = () => {
-    if (canSubmit) onLogin();
+    if (canSubmit && !isSubmitting) {
+      onLogin({
+        email: email.trim(),
+        password: password.trim(),
+      });
+    }
   };
 
   return (
@@ -57,13 +62,14 @@ export default function LoginScreen({ onLogin }) {
             onSubmitEditing={handleLogin}
           />
           <TouchableOpacity
-            style={[styles.btn, !canSubmit && styles.btnDisabled]}
+            style={[styles.btn, (!canSubmit || isSubmitting) && styles.btnDisabled]}
             onPress={handleLogin}
             activeOpacity={0.8}
-            disabled={!canSubmit}
+            disabled={!canSubmit || isSubmitting}
           >
-            <Text style={styles.btnText}>Entrar</Text>
+            <Text style={styles.btnText}>{isSubmitting ? 'Entrando...' : 'Entrar'}</Text>
           </TouchableOpacity>
+          {!!authError && <Text style={styles.errorText}>{authError}</Text>}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -128,5 +134,9 @@ const styles = StyleSheet.create({
     color:      '#fff',
     fontSize:   15,
     fontWeight: '600',
+  },
+  errorText: {
+    color: '#ff7f7f',
+    fontSize: 12,
   },
 });
