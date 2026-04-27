@@ -15,22 +15,38 @@ import com.leads.repository.TenantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Legacy Meta OAuth service.
+ *
+ * @deprecated This service will be superseded by MetaIntegrationProvider in Phase 2.
+ *     All Meta OAuth flows will move into the provider architecture.
+ *     Do not add new logic here.
+ */
+@Deprecated(since = "Phase 1", forRemoval = true)
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class OAuthService {
 
+    private static final String GRAPH_API_BASE = "https://graph.facebook.com";
+    private static final String FACEBOOK_DIALOG_BASE = "https://www.facebook.com";
+
     private final TenantRepository tenantRepo;
     private final RestTemplate restTemplate;
 
-    @Value("${meta.app-id}")       private String appId;
-    @Value("${meta.app-secret}")   private String appSecret;
-    @Value("${meta.redirect-uri}") private String redirectUri;
-    @Value("${meta.graph-api-url}") private String graphApiUrl;
+    @Value("${meta.app-id}")                    private String appId;
+    @Value("${meta.app-secret}")                private String appSecret;
+    @Value("${meta.redirect-uri}")              private String redirectUri;
+    @Value("${meta.graph-api-version:v25.0}")   private String graphApiVersion;
+
+    /** Builds a Graph API URL using the configured version. No hardcoded version strings. */
+    private String graphUrl(String path) {
+        return GRAPH_API_BASE + "/" + graphApiVersion + path;
+    }
 
     /** URL a la que redirigimos al usuario para que autorice */
     public String buildAuthorizationUrl(String state) {
-        return "https://www.facebook.com/v19.0/dialog/oauth" +
+        return FACEBOOK_DIALOG_BASE + "/" + graphApiVersion + "/dialog/oauth" +
             "?client_id=" + appId +
             "&redirect_uri=" + redirectUri +
             "&scope=instagram_basic,instagram_manage_messages,pages_messaging,pages_show_list" +
@@ -41,7 +57,7 @@ public class OAuthService {
     /** Intercambia el code por un short-lived token y luego lo convierte a long-lived */
     public String exchangeCodeForLongLivedToken(String code) {
         // 1. Short-lived token (1 hora)
-        String shortUrl = graphApiUrl + "/oauth/access_token" +
+        String shortUrl = graphUrl("/oauth/access_token") +
             "?client_id=" + appId +
             "&client_secret=" + appSecret +
             "&redirect_uri=" + redirectUri +
@@ -52,7 +68,7 @@ public class OAuthService {
         if (shortToken == null) throw new RuntimeException("No se obtuvo short-lived token");
 
         // 2. Long-lived token (60 días)
-        String longUrl = graphApiUrl + "/oauth/access_token" +
+        String longUrl = graphUrl("/oauth/access_token") +
             "?grant_type=fb_exchange_token" +
             "&client_id=" + appId +
             "&client_secret=" + appSecret +
@@ -64,13 +80,13 @@ public class OAuthService {
 
     /** Obtiene las páginas de Facebook asociadas a este token */
     public JsonNode fetchPages(String accessToken) {
-        String url = graphApiUrl + "/me/accounts?access_token=" + accessToken;
+        String url = graphUrl("/me/accounts") + "?access_token=" + accessToken;
         return restTemplate.getForObject(url, JsonNode.class);
     }
 
     /** Refresca un long-lived token antes de que expire */
     public String refreshToken(String expiredToken) {
-        String url = graphApiUrl + "/oauth/access_token" +
+        String url = graphUrl("/oauth/access_token") +
             "?grant_type=fb_exchange_token" +
             "&client_id=" + appId +
             "&client_secret=" + appSecret +

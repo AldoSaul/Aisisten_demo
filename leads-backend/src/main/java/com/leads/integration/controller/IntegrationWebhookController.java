@@ -23,7 +23,11 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class IntegrationWebhookController {
 
-    private static final String SIGNATURE_HEADER = "X-Signature";
+    /**
+     * Canonical webhook signature header used by Meta (Instagram, Messenger, WhatsApp Cloud API).
+     * See: https://developers.facebook.com/docs/messenger-platform/webhooks#validate-payloads
+     */
+    private static final String SIGNATURE_HEADER = "X-Hub-Signature-256";
 
     private final IntegrationWebhookService webhookService;
 
