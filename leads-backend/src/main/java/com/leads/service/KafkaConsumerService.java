@@ -12,10 +12,17 @@ import com.leads.dto.IncomingMessageEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Legacy Kafka consumer for the old IncomingMessageEvent path.
+ *
+ * @deprecated Coupled to the legacy /webhook POST route. Will be removed in Phase 2
+ *     when inbound event processing moves to the provider-normalized consumer.
+ */
+@Deprecated(since = "Phase 1", forRemoval = true)
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "spring.kafka.enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(name = "app.messaging.kafka-enabled", havingValue = "true")
 public class KafkaConsumerService {
 
     private final LeadService leadService;

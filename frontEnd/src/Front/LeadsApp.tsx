@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
+import { Link } from "react-router-dom";
 import { css } from "../CSS/leadCss.tsx";
 import { TENANTS, CH_COLOR, CH_LABEL, CH_LIGHT, normalizeConv, normalizeMsg } from "../helper/data.tsx";
 import { getConversations, getMessages, markAsRead, sendMessage } from "../api/client.ts";
@@ -142,6 +143,26 @@ export default function LeadsApp({ onLogout }: LeadsAppProps) {
         <aside className="sidebar">
           <div className="sidebar-brand">
             <h1>Leads<span>Hub</span></h1>
+            <Link
+              to="/channels"
+              style={{
+                marginTop: 12,
+                width: "100%",
+                border: "1px solid #5a5248",
+                borderRadius: 8,
+                background: "transparent",
+                color: "#f0ece4",
+                padding: "8px 10px",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "inline-block",
+                textDecoration: "none",
+                textAlign: "center",
+              }}
+            >
+              Channel connections
+            </Link>
             <button
               type="button"
               onClick={onLogout}

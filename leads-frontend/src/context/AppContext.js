@@ -12,6 +12,7 @@ import { createStompClient } from '../ws/client';
 const AppContext = createContext(null);
 
 export function AppProvider({ children }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTenant,  setActiveTenant]  = useState(1);
   const [channelFilter, setChannelFilter] = useState(null);
   const [conversations, setConversations] = useState([]);
@@ -24,16 +25,22 @@ export function AppProvider({ children }) {
 
   // Load conversations when tenant changes
   useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
     getConversations(activeTenant)
       .then(data => {
         console.debug('[mobile] normalized conversations', { tenantId: activeTenant, count: data.length });
         setConversations(data.map(c => normalizeConv(c, activeTenant)));
       })
       .catch(error => console.error('[mobile] failed to load conversations', error));
-  }, [activeTenant]);
+  }, [activeTenant, isAuthenticated]);
 
   // WebSocket: reconnect when tenant changes
   useEffect(() => {
+    if (!isAuthenticated) {
+      return;
+    }
     const client = createStompClient(activeTenant, (dto) => {
       const convId = dto.conversationId;
       if (!convId) return;
@@ -63,7 +70,7 @@ export function AppProvider({ children }) {
 
     client.activate();
     return () => { client.deactivate(); };
-  }, [activeTenant]);
+  }, [activeTenant, isAuthenticated]);
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -122,6 +129,7 @@ export function AppProvider({ children }) {
         messages,      showTyping,
         totalUnread,
         activeConvId,  selectConv,
+        isAuthenticated, setIsAuthenticated,
         sendMessage,
       }}
     >

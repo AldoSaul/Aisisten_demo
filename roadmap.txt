@@ -1,0 +1,322 @@
+Yes — you **do need extra considerations before starting the business wiring**.
+
+Your current project is already in a good place for that next step because you have backend controllers/services, Kafka pieces, webhook-related code, and both web/mobile frontends in the repo snapshot. That means you can add channel integrations on top of an existing platform instead of starting from zero. 
+
+The main recommendation is this: **do Meta first, and structure TikTok as a separate second track**.
+
+Why:
+Meta already has the official building blocks for business onboarding and messaging at scale: WhatsApp Cloud API, Embedded Signup, Facebook Login for Business, Instagram Messaging API, and Messenger Platform flows. TikTok definitely has developer products and OAuth/Login Kit, but its public developer surface is not the same kind of ready-made “customer support inbox across WhatsApp/Facebook/Instagram” stack that Meta provides. TikTok’s published developer offerings are centered around Login Kit, content posting, display APIs, webhooks, and some business/ads capabilities rather than a Meta-style unified inbound messaging stack. ([Facebook Developers][1])
+
+So the best next step is:
+
+**Phase 1**
+Build the **channel connection platform** in your app.
+
+**Phase 2**
+Use that platform to onboard:
+
+* WhatsApp Business via Meta
+* Instagram Business messaging via Meta
+* Facebook Page / Messenger via Meta
+* TikTok account connection later, but only for the capabilities TikTok actually exposes and approves for your app. ([Facebook Developers][2])
+
+## What you should think about before wiring anything
+
+### 1. Separate “login to your app” from “connect a business channel”
+
+These are not the same thing.
+
+You already have your own app login with JWT. That should stay as your platform authentication. Then add a second layer: **Connect Social Account**.
+
+That second layer should use OAuth / provider authorization:
+
+* Meta: Facebook Login for Business and product-specific onboarding, especially Embedded Signup for WhatsApp. ([Facebook Developers][1])
+* TikTok: Login Kit / OAuth with approved scopes and redirect URIs. ([developers.tiktok.com][3])
+
+So the mental model should be:
+
+* **App sign-in** → your JWT
+* **Channel connection** → Meta/TikTok authorization
+* **Tenant mapping** → save which customer/business connected which external assets
+
+That is the cleanest architecture for SaaS onboarding.
+
+### 2. Design for multi-tenant account mapping now
+
+Before wiring APIs, define tables like:
+
+* `integration_account`
+* `integration_asset`
+* `oauth_connection`
+* `webhook_subscription`
+* `channel_identity`
+
+Because one customer may connect:
+
+* 1 WhatsApp business number
+* several Instagram accounts
+* one or more Facebook Pages
+* later a TikTok business account
+
+And each one will have:
+
+* provider name
+* external business/account/page/phone identifiers
+* access token metadata
+* refresh/expiry metadata where applicable
+* scopes granted
+* status
+* last sync time
+* tenant ownership
+
+This will save you a lot of rework later.
+
+### 3. Build a generic webhook ingestion layer
+
+You already have webhook-related backend structure, which is good groundwork. 
+
+Do not build provider-specific logic directly in controllers. Use this flow instead:
+
+`WebhookController -> provider validator -> normalize event -> publish to Kafka -> provider-specific consumer/router -> conversation/message domain`
+
+That matters because:
+
+* Meta and TikTok will have different webhook payloads
+* retries and duplicates happen
+* signature verification differs by provider
+* you want idempotent processing
+
+### 4. Plan approval and review as part of the project
+
+This is not only coding.
+
+For Meta, public production use usually involves app setup, use-case configuration, permissions, and App Review depending on what you expose and for whom. Instagram Messaging specifically has review guidance for apps used for your own business versus apps used for other businesses. TikTok also requires app registration and app review before broader access to products and scopes. ([Facebook Developers][4])
+
+So your roadmap should include:
+
+* developer portal setup
+* business verification if required
+* privacy policy / terms / callback URLs
+* test users or sandbox users
+* permission/scope review
+* production access checklist
+
+### 5. Be precise about the business outcome for TikTok
+
+For Meta, “connect business account and manage customer conversations” is straightforward.
+
+For TikTok, first define what you actually want:
+
+* sign in with TikTok
+* connect a TikTok business account
+* pull profile/basic data
+* use ads/business APIs
+* receive webhooks
+* content posting
+* lead sync
+* messaging or inbox features
+
+Those are different products and may require different scopes, approvals, or may not match the same inbox model as Meta. TikTok’s public developer docs clearly document Login Kit, OAuth token handling, scopes, webhooks, and app registration/review, but you should not assume a full Meta-style messaging stack exists unless the exact product is documented and approved for your use case. ([developers.tiktok.com][3])
+
+## My suggestion for implementation order
+
+### Option A: safest and best
+
+1. Finish internal “integration framework”
+2. Implement Meta WhatsApp onboarding
+3. Add Instagram messaging
+4. Add Facebook Page/Messenger connection
+5. Add TikTok login/account connection only
+6. Expand TikTok after product/approval confirmation
+
+That gives you value early and keeps risk lower.
+
+## How to create the Meta app
+
+For Meta, create the app in the **Meta for Developers App Dashboard**, then configure the products you need. For WhatsApp SaaS onboarding, Meta recommends the **Tech Provider** route plus **Embedded Signup** for onboarding customer businesses onto the WhatsApp Business Platform. Facebook Login for Business is the preferred auth/authorization layer for integrations with Meta business tools. ([Facebook Developers][5])
+
+A practical Meta setup would be:
+
+1. Create one Meta app for your platform in the developer dashboard.
+2. Add the products/use cases you need:
+
+   * WhatsApp
+   * Facebook Login for Business
+   * Messenger / Facebook Page related product if needed
+   * Instagram Messaging / Instagram Platform as needed
+3. Configure:
+
+   * app domains
+   * privacy policy URL
+   * terms URL
+   * redirect URIs
+   * webhook callback URL
+   * test users / test business assets
+4. For WhatsApp, use **Embedded Signup** so your customer can connect their own business assets from your app. Meta documents Embedded Signup and Tech Provider onboarding specifically for this. ([Facebook Developers][6])
+
+## How to wire Meta into your application
+
+### Frontend
+
+Add a “Connect Channels” page with cards like:
+
+* Connect WhatsApp Business
+* Connect Instagram Business
+* Connect Facebook Page
+
+Each card launches the provider authorization flow.
+
+For WhatsApp, the frontend should launch the Embedded Signup flow and capture the returned identifiers/tokens or onboarding results according to Meta’s flow. For Facebook/Instagram, the frontend starts the business login/authorization and receives the callback result. ([Facebook Developers][6])
+
+### Backend
+
+Add endpoints like:
+
+* `POST /integrations/meta/whatsapp/start`
+* `GET /oauth/meta/callback`
+* `POST /webhooks/meta`
+* `POST /integrations/meta/assets/sync`
+
+The backend should:
+
+* exchange auth codes for tokens where required
+* store token metadata securely
+* fetch connected assets
+* subscribe/configure webhooks
+* map assets to your tenant/customer
+* enqueue sync events via Kafka
+
+### Domain model
+
+Normalize everything into your own model:
+
+* Channel = WhatsApp / Instagram / Facebook
+* ExternalAccount = page/business/account/phone
+* Conversation
+* Contact / Lead
+* Message
+* MessageStatus
+* WebhookEventLog
+
+That lets the UI stay provider-agnostic.
+
+## How to create the TikTok app
+
+TikTok’s official developer flow is:
+
+* register the app in the TikTok Developer Portal
+* configure product settings
+* configure redirect URIs
+* use sandbox if available
+* submit for review for production/public access. ([developers.tiktok.com][7])
+
+For web and mobile specifically, TikTok Login Kit requires registered redirect URIs. The docs also note platform-specific redirect requirements, including app/deep links for Android and universal links for iOS in some flows. ([developers.tiktok.com][8])
+
+So your TikTok setup is likely:
+
+1. Create the app in TikTok Developer Portal
+2. Add Login Kit first
+3. Configure web redirect URI
+4. Configure Android/iOS redirect handling if you want native connection from mobile
+5. Request scopes you actually need
+6. Use sandbox/testing
+7. Submit for app review before public rollout ([developers.tiktok.com][7])
+
+## How to wire TikTok later
+
+Use the same integration pattern as Meta, but do not assume the same features.
+
+### Frontend
+
+Add “Connect TikTok” button.
+
+### Backend
+
+Implement:
+
+* `GET /oauth/tiktok/start`
+* `GET /oauth/tiktok/callback`
+* `POST /webhooks/tiktok`
+
+Then:
+
+* exchange authorization code for access token
+* store scopes and expiry
+* fetch allowed account/profile data
+* subscribe to supported webhooks if needed
+
+TikTok documents OAuth token exchange, scopes, and webhook support. ([developers.tiktok.com][9])
+
+## About the “sign on authorization”
+
+Yes — you were thinking in the right direction.
+
+You need a **provider authorization flow** so the business user can sign in to Meta or TikTok and grant your app permission to access the connected business assets. That authorization is configured in the provider developer app settings, not only in your own application code. In practice that means:
+
+* register the app
+* set redirect URIs
+* request scopes/permissions
+* complete review where needed
+* then implement the callback flow in your backend. ([Facebook Developers][1])
+
+## Concrete recommendations for your project
+
+I would do these next:
+
+1. **Create a generic integrations module in backend**
+
+   * provider enum
+   * oauth connection service
+   * token storage
+   * webhook signature validation
+   * Kafka integration events
+
+2. **Add database tables for multi-channel onboarding**
+
+   * tenant ↔ provider account ↔ external asset mapping
+
+3. **Build one frontend settings page**
+
+   * “Channels”
+   * each provider has Connect / Connected / Error / Reconnect states
+
+4. **Implement Meta first**
+
+   * start with WhatsApp Embedded Signup
+   * then Instagram
+   * then Facebook Page/Messenger
+
+5. **Implement TikTok only as “account connection” first**
+
+   * login/auth
+   * token storage
+   * basic asset/account retrieval
+   * only then expand based on approved scopes and actual business need
+
+6. **Keep provider payloads out of your UI**
+
+   * always normalize into your own domain objects
+
+The most important warning is this: **do not code the TikTok feature assuming parity with Meta messaging**. Build the same connection framework, yes. But keep the provider capabilities separate until the exact TikTok APIs and approvals are confirmed. ([developers.tiktok.com][10])
+
+The strongest immediate move is:
+**design the integration framework and start Meta WhatsApp onboarding first**.
+
+I can turn this into a practical implementation plan next, with:
+
+* backend endpoints
+* DB tables
+* OAuth flow diagram
+* webhook flow
+* a suggested rollout by sprint.
+
+[1]: https://developers.facebook.com/documentation/facebook-login/facebook-login-for-business?utm_source=chatgpt.com "Facebook Login for Business - Meta for Developers"
+[2]: https://developers.facebook.com/documentation/business-messaging/whatsapp/get-started?utm_source=chatgpt.com "WhatsApp Cloud API Get Started - Meta for Developers"
+[3]: https://developers.tiktok.com/doc/login-kit-manage-user-access-tokens/?utm_source=chatgpt.com "Manage User Access Tokens with OAuth v2"
+[4]: https://developers.facebook.com/docs/messenger-platform/instagram/app-review/apps-for-other-businesses/?utm_source=chatgpt.com "Apps For Other Businesses - Instagram Messaging"
+[5]: https://developers.facebook.com/documentation/business-messaging/whatsapp/solution-providers/get-started-for-tech-providers?utm_source=chatgpt.com "Become a Tech Provider - Meta for Developers - Facebook"
+[6]: https://developers.facebook.com/documentation/business-messaging/whatsapp/embedded-signup/overview/?utm_source=chatgpt.com "Embedded Signup - Meta for Developers"
+[7]: https://developers.tiktok.com/doc/getting-started-create-an-app?utm_source=chatgpt.com "Register Your App"
+[8]: https://developers.tiktok.com/doc/login-kit-web/?utm_source=chatgpt.com "Login Kit for Web - TikTok Developer Guide"
+[9]: https://developers.tiktok.com/doc/oauth-user-access-token-management?utm_source=chatgpt.com "TikTok API Authorization and Access Management"
+[10]: https://developers.tiktok.com/?utm_source=chatgpt.com "Explore TikTok's Developer Solutions and Integrations"

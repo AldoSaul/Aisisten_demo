@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoginScreen from './Front/LoginScreen';
 import LeadsApp from './Front/LeadsApp';
+import ChannelsScreen from './Front/ChannelsScreen';
 import { clearSession, loadSession, saveSession } from './auth/session';
 import { getMe, type LoginResponse, type UserSession } from './api/auth';
 
@@ -67,6 +68,10 @@ export default function App() {
         <Route
           path="/"
           element={isAuthenticated ? <LeadsApp onLogout={authActions.logout} /> : <Navigate to="/login" replace />}
+        />
+        <Route
+          path="/channels"
+          element={isAuthenticated && user ? <ChannelsScreen user={user} onLogout={authActions.logout} /> : <Navigate to="/login" replace />}
         />
       </Routes>
     </Router>
