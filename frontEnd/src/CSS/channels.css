@@ -1,0 +1,152 @@
+/* ── ChannelsScreen styles ── */
+
+.channels-page {
+  min-height: 100vh;
+  background: #f8f7f4;
+  padding: 24px;
+}
+
+.channels-content {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+/* ── Header ── */
+.channels-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.channels-header-title h1 {
+  margin: 0;
+  font-size: 24px;
+  color: #1f2937;
+}
+
+.channels-header-title p {
+  margin: 6px 0 0;
+  color: #667085;
+  font-size: 14px;
+}
+
+.channels-header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* ── Header nav buttons (link + logout) ── */
+.btn {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #d0d5dd;
+  color: #1d2939;
+  background: white;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+/* ── Error banner ── */
+.channels-error {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  background: #fef2f2;
+  color: #b42318;
+  font-size: 13px;
+}
+
+/* ── Provider list ── */
+.channels-list {
+  display: grid;
+  gap: 12px;
+}
+
+/* ── Channel card ── */
+.channel-card {
+  background: white;
+  border: 1px solid #eaecf0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.channel-card-info {
+  min-width: 0;
+}
+
+.channel-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.channel-display-name {
+  font-size: 15px;
+  color: #101828;
+}
+
+/* ── Status badge ── */
+.status-badge {
+  font-size: 12px;
+  background: #f2f4f7;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.status-badge--connected  { color: #12805c; }
+.status-badge--error      { color: #b42318; }
+.status-badge--reconnect  { color: #b54708; }
+.status-badge--pending    { color: #6941c6; }
+.status-badge--default    { color: #475467; }
+
+.channel-provider-key {
+  margin-top: 4px;
+  color: #667085;
+  font-size: 12px;
+}
+
+/* ── Channel action buttons ── */
+.channel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.btn-action {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #d0d5dd;
+  background: white;
+  color: #344054;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.btn-action.primary {
+  border-color: #1366d6;
+  background: #1570ef;
+  color: white;
+}
+
+.btn-action.danger {
+  border-color: #fecdca;
+  background: #fff5f4;
+  color: #b42318;
+}
+
+.btn-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
+import { Link } from "react-router-dom";
 import { css } from "../CSS/leadCss.tsx";
 import { TENANTS, CH_COLOR, CH_LABEL, CH_LIGHT, normalizeConv, normalizeMsg } from "../helper/data.tsx";
 import { getConversations, getMessages, markAsRead, sendMessage } from "../api/client.ts";
@@ -142,22 +143,10 @@ export default function LeadsApp({ onLogout }: LeadsAppProps) {
         <aside className="sidebar">
           <div className="sidebar-brand">
             <h1>Leads<span>Hub</span></h1>
-            <button
-              type="button"
-              onClick={onLogout}
-              style={{
-                marginTop: 12,
-                width: "100%",
-                border: "1px solid #5a5248",
-                borderRadius: 8,
-                background: "transparent",
-                color: "#f0ece4",
-                padding: "8px 10px",
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
-            >
+            <Link to="/channels" className="sidebar-nav-btn">
+              Channel connections
+            </Link>
+            <button type="button" onClick={onLogout} className="sidebar-nav-btn">
               Sign out
             </button>
           </div>
@@ -181,8 +170,8 @@ export default function LeadsApp({ onLogout }: LeadsAppProps) {
               <div className="n" style={{ color: totalUnread > 0 ? "#C84B2F" : undefined }}>{totalUnread}</div>
               <div className="l">Sin leer</div>
             </div>
-            <div className="stat-card" style={{ gridColumn: "span 2" }}>
-              <div className="n" style={{ fontSize: 14, color: "#7DC97A" }}>● Conectado</div>
+            <div className="stat-card stat-card--wide">
+              <div className="n ws-status-label">● Conectado</div>
               <div className="l">WebSocket activo</div>
             </div>
           </div>
@@ -212,9 +201,7 @@ export default function LeadsApp({ onLogout }: LeadsAppProps) {
 
           <div className="conv-list">
             {tenantConvs.length === 0 && (
-              <div style={{ padding: 24, textAlign: "center", color: "var(--sub)", fontSize: 13 }}>
-                Sin conversaciones
-              </div>
+              <div className="conv-empty-msg">Sin conversaciones</div>
             )}
             {tenantConvs.map((conv: any) => (
               <div
@@ -230,7 +217,7 @@ export default function LeadsApp({ onLogout }: LeadsAppProps) {
                     <span className={`conv-name ${conv.unread > 0 ? "bold" : ""}`}>{conv.leadNombre}</span>
                     <span className="conv-time">{conv.time}</span>
                   </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <div className="conv-badge-row">
                     <span
                       className="ch-badge"
                       style={{

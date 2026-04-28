@@ -349,6 +349,34 @@ export const css = `
   .typing span:nth-child(3) { animation-delay: 0.4s; }
   @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-5px)} }
 
+  /* ── Sidebar navigation buttons / links ── */
+  .sidebar-nav-btn {
+    display: block;
+    margin-top: 12px;
+    width: 100%;
+    border: 1px solid #5a5248;
+    border-radius: 8px;
+    background: transparent;
+    color: #f0ece4;
+    padding: 8px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    text-align: center;
+    box-sizing: border-box;
+    font-family: var(--font-body);
+  }
+  .sidebar-nav-btn:hover { background: #221e18; }
+
+  /* ── Stat card variants ── */
+  .stat-card--wide { grid-column: span 2; }
+  .stat-card .n.ws-status-label { font-size: 14px; color: #7DC97A; }
+
+  /* ── Conversation list ── */
+  .conv-badge-row { display: flex; align-items: center; gap: 6px; }
+  .conv-empty-msg { padding: 24px; text-align: center; color: var(--sub); font-size: 13px; }
+
   .typing-bubble {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 14px; border-bottom-left-radius: 3px;
