@@ -15,11 +15,7 @@ class MetaGraphClientTest {
 
     @BeforeEach
     void setUp() {
-        // Instantiate directly with a null RestTemplate — we only test URL building here
-        client = new MetaGraphClient(null, null) {
-            // Override version via reflection is not needed; we test the buildUrl contract
-        };
-        // Set the version field via the default value declared in the class
+        client = buildClientWithVersion("v25.0");
     }
 
     @Test
@@ -64,7 +60,7 @@ class MetaGraphClientTest {
      * This simulates Spring @Value injection for unit tests without a Spring context.
      */
     private MetaGraphClient buildClientWithVersion(String version) {
-        MetaGraphClient c = new MetaGraphClient(null, null);
+        MetaGraphClient c = new MetaGraphClient(null);
         try {
             var field = MetaGraphClient.class.getDeclaredField("graphApiVersion");
             field.setAccessible(true);

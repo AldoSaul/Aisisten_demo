@@ -4,7 +4,6 @@ import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -55,26 +54,6 @@ public class WebhookController {
     public ResponseEntity<String> verifyMeta(@RequestParam Map<String, String> queryParams) {
         log.warn("Legacy webhook GET /webhook called — prefer /api/v1/integrations/webhooks/meta");
         String challenge = integrationWebhookService.resolveVerificationChallenge(DEFAULT_PROVIDER, queryParams);
-        if (challenge == null || challenge.isBlank()) {
-            return ResponseEntity.status(403).body("Verification failed");
-        }
-        return ResponseEntity.ok(challenge);
-    }
-
-    /**
-     * Legacy provider-specific challenge verification.
-     * Delegates to the provider-based service using the path variable as provider key.
-     *
-     * @deprecated Use GET /api/v1/integrations/webhooks/{provider} instead.
-     */
-    @Deprecated(since = "Phase 1", forRemoval = true)
-    @GetMapping("/{provider}")
-    public ResponseEntity<String> verifyByProvider(
-        @PathVariable String provider,
-        @RequestParam Map<String, String> queryParams
-    ) {
-        log.warn("Legacy webhook GET /webhook/{} called — prefer /api/v1/integrations/webhooks/{}", provider, provider);
-        String challenge = integrationWebhookService.resolveVerificationChallenge(provider, queryParams);
         if (challenge == null || challenge.isBlank()) {
             return ResponseEntity.status(403).body("Verification failed");
         }

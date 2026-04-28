@@ -34,11 +34,10 @@ public class MetaGraphClient {
     private String graphApiVersion;
 
     private final RestTemplate restTemplate;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public MetaGraphClient(RestTemplate restTemplate, ObjectMapper objectMapper) {
+    public MetaGraphClient(RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
-        this.objectMapper = objectMapper;
     }
 
     /**

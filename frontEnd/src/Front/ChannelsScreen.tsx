@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
 import type { UserSession } from "../api/auth";
@@ -12,6 +12,7 @@ import {
   type IntegrationConnectionSummary,
   type ProviderDescriptor,
 } from "../api/integrations";
+import "../CSS/channels.css";
 
 type ChannelsScreenProps = {
   user: UserSession;
@@ -33,18 +34,13 @@ function statusLabel(status: string): string {
   }
 }
 
-function statusColor(status: string): string {
+function statusBadgeClass(status: string): string {
   switch (status) {
-    case "CONNECTED":
-      return "#12805c";
-    case "ERROR":
-      return "#b42318";
-    case "RECONNECT_REQUIRED":
-      return "#b54708";
-    case "PENDING":
-      return "#6941c6";
-    default:
-      return "#475467";
+    case "CONNECTED":        return "status-badge status-badge--connected";
+    case "ERROR":            return "status-badge status-badge--error";
+    case "RECONNECT_REQUIRED": return "status-badge status-badge--reconnect";
+    case "PENDING":          return "status-badge status-badge--pending";
+    default:                 return "status-badge status-badge--default";
   }
 }
 
@@ -133,113 +129,46 @@ export default function ChannelsScreen({ user, onLogout }: ChannelsScreenProps) 
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8f7f4", padding: "24px" }}>
-      <div style={{ maxWidth: 980, margin: "0 auto" }}>
-        <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 24, color: "#1f2937" }}>Channel Connections</h1>
-            <p style={{ margin: "6px 0 0", color: "#667085", fontSize: 14 }}>
+    <div className="channels-page">
+      <div className="channels-content">
+        <header className="channels-header">
+          <div className="channels-header-title">
+            <h1>Channel Connections</h1>
+            <p>
               Tenant: <strong>{user.tenantName}</strong>
             </p>
           </div>
-          <div style={{ display: "flex", gap: 10 }}>
-            <Link
-              to="/"
-              style={{
-                textDecoration: "none",
-                padding: "10px 14px",
-                borderRadius: 8,
-                border: "1px solid #d0d5dd",
-                color: "#1d2939",
-                background: "white",
-                fontWeight: 600,
-                fontSize: 13,
-              }}
-            >
-              Inbox
-            </Link>
-            <button
-              type="button"
-              onClick={onLogout}
-              style={{
-                padding: "10px 14px",
-                borderRadius: 8,
-                border: "1px solid #d0d5dd",
-                color: "#1d2939",
-                background: "white",
-                fontWeight: 600,
-                fontSize: 13,
-                cursor: "pointer",
-              }}
-            >
+          <div className="channels-header-actions">
+            <Link to="/" className="btn">Inbox</Link>
+            <button type="button" onClick={onLogout} className="btn">
               Sign out
             </button>
           </div>
         </header>
 
-        {error && (
-          <div
-            style={{
-              marginBottom: 14,
-              padding: "10px 12px",
-              borderRadius: 8,
-              border: "1px solid #fecaca",
-              background: "#fef2f2",
-              color: "#b42318",
-              fontSize: 13,
-            }}
-          >
-            {error}
-          </div>
-        )}
+        {error && <div className="channels-error">{error}</div>}
 
-        <div style={{ display: "grid", gap: 12 }}>
+        <div className="channels-list">
           {providers.map((provider) => {
             const connection = connectionByProvider.get(provider.provider);
             const state = connection?.status ?? "NOT_CONNECTED";
             const isBusy = busyProvider === provider.provider;
 
             return (
-              <div
-                key={provider.provider}
-                style={{
-                  background: "white",
-                  border: "1px solid #eaecf0",
-                  borderRadius: 10,
-                  padding: "14px 16px",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  gap: 10,
-                }}
-              >
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <strong style={{ fontSize: 15, color: "#101828" }}>{provider.displayName}</strong>
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: statusColor(state),
-                        background: "#f2f4f7",
-                        padding: "2px 8px",
-                        borderRadius: 999,
-                      }}
-                    >
-                      {statusLabel(state)}
-                    </span>
+              <div key={provider.provider} className="channel-card">
+                <div className="channel-card-info">
+                  <div className="channel-name-row">
+                    <strong className="channel-display-name">{provider.displayName}</strong>
+                    <span className={statusBadgeClass(state)}>{statusLabel(state)}</span>
                   </div>
-                  <div style={{ marginTop: 4, color: "#667085", fontSize: 12 }}>
+                  <div className="channel-provider-key">
                     Provider key: {provider.provider}
                   </div>
                 </div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                <div className="channel-actions">
                   {state === "PENDING" ? (
-                    <button
-                      type="button"
-                      disabled
-                      style={buttonStyle("secondary")}
-                    >
+                    <button type="button" disabled className="btn-action secondary">
                       Connecting...
                     </button>
                   ) : state === "CONNECTED" ? (
@@ -248,7 +177,7 @@ export default function ChannelsScreen({ user, onLogout }: ChannelsScreenProps) 
                         type="button"
                         disabled={isBusy}
                         onClick={() => handleSyncAssets(provider.provider)}
-                        style={buttonStyle("secondary")}
+                        className="btn-action secondary"
                       >
                         Sync assets
                       </button>
@@ -256,7 +185,7 @@ export default function ChannelsScreen({ user, onLogout }: ChannelsScreenProps) 
                         type="button"
                         disabled={isBusy || !connection}
                         onClick={() => connection && handleDisconnect(connection.id, provider.provider)}
-                        style={buttonStyle("danger")}
+                        className="btn-action danger"
                       >
                         Disconnect
                       </button>
@@ -270,7 +199,7 @@ export default function ChannelsScreen({ user, onLogout }: ChannelsScreenProps) 
                           ? handleReconnect(connection.id, provider.provider)
                           : handleConnect(provider.provider)
                       }
-                      style={buttonStyle("primary")}
+                      className="btn-action primary"
                     >
                       Reconnect
                     </button>
@@ -279,7 +208,7 @@ export default function ChannelsScreen({ user, onLogout }: ChannelsScreenProps) 
                       type="button"
                       disabled={isBusy}
                       onClick={() => handleConnect(provider.provider)}
-                      style={buttonStyle("primary")}
+                      className="btn-action primary"
                     >
                       Connect
                     </button>
@@ -292,42 +221,5 @@ export default function ChannelsScreen({ user, onLogout }: ChannelsScreenProps) 
       </div>
     </div>
   );
-}
-
-function buttonStyle(kind: "primary" | "secondary" | "danger"): CSSProperties {
-  if (kind === "primary") {
-    return {
-      padding: "8px 12px",
-      borderRadius: 8,
-      border: "1px solid #1366d6",
-      background: "#1570ef",
-      color: "white",
-      fontWeight: 600,
-      fontSize: 12,
-      cursor: "pointer",
-    };
-  }
-  if (kind === "danger") {
-    return {
-      padding: "8px 12px",
-      borderRadius: 8,
-      border: "1px solid #fecdca",
-      background: "#fff5f4",
-      color: "#b42318",
-      fontWeight: 600,
-      fontSize: 12,
-      cursor: "pointer",
-    };
-  }
-  return {
-    padding: "8px 12px",
-    borderRadius: 8,
-    border: "1px solid #d0d5dd",
-    background: "white",
-    color: "#344054",
-    fontWeight: 600,
-    fontSize: 12,
-    cursor: "pointer",
-  };
 }
 
